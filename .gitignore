@@ -1,0 +1,30 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+
+# macOS
+.DS_Store
+*.swp
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 환경 변수 / API 키 (절대 올리면 안 됨!)
+.env
+*.env
+*.env.local
+secrets.dart
+api_keys.dart
