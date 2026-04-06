@@ -4,6 +4,7 @@ import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
 import 'package:nutrient_tracker/features/auth/widgets/profile_setup_steps.dart';
+import 'package:nutrient_tracker/services/medicine_service.dart';
 import 'package:nutrient_tracker/services/nutrition_calculator.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   HealthGoal _goal = HealthGoal.health;
   bool _hasKidney = false;
   bool _hasLiver = false;
+  List<String> _medications = [];
   bool _isLoading = false;
 
   @override
@@ -94,7 +96,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         dailySodiumTarget: targets.sodiumMg,
         hasKidneyDisease: _hasKidney,
         hasLiverDisease: _hasLiver,
-        medications: [],
+        medications: _medications,
         createdAt: DateTime.now(),
       ));
 
@@ -146,6 +148,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             hasKidney: _hasKidney, hasLiver: _hasLiver,
             onKidneyChanged: (v) => setState(() => _hasKidney = v),
             onLiverChanged: (v) => setState(() => _hasLiver = v),
+            medicationOptions: MedicineService.allCategories,
+            selectedMedications: _medications,
+            onMedicationToggle: (medication, selected) {
+              setState(() {
+                if (selected) {
+                  _medications = [..._medications, medication];
+                } else {
+                  _medications =
+                      _medications.where((item) => item != medication).toList();
+                }
+              });
+            },
             onSave: _handleSave, isLoading: _isLoading,
           ),
         ],

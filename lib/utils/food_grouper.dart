@@ -52,6 +52,7 @@ class FoodGrouper {
         fiberG:     avg((f) => f.per100g.fiberG),
         sodiumMg:   avg((f) => f.per100g.sodiumMg),
         caffeineMg: avg((f) => f.per100g.caffeineMg),
+        alcoholG:   avg((f) => f.per100g.alcoholG),
       ),
     );
   }

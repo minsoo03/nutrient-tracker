@@ -15,6 +15,24 @@ class MedicineWarning {
   });
 }
 
+class MedicationRiskProfile {
+  final String category;
+  final double liverWeight;
+  final double kidneyWeight;
+  final bool sensitiveToProtein;
+  final bool sensitiveToAlcohol;
+  final bool sensitiveToCaffeine;
+
+  const MedicationRiskProfile({
+    required this.category,
+    this.liverWeight = 0,
+    this.kidneyWeight = 0,
+    this.sensitiveToProtein = false,
+    this.sensitiveToAlcohol = false,
+    this.sensitiveToCaffeine = false,
+  });
+}
+
 class MedicineService {
   /// 약물 카테고리 → 영양소 주의사항 매핑
   static const _warnings = <String, List<MedicineWarning>>{
@@ -72,6 +90,76 @@ class MedicineService {
         nutrient: 'proteinG',
       ),
     ],
+    '피부과약(이소트레티노인 등)': [
+      MedicineWarning(
+        title: '간 부담 주의',
+        description: '음주, 고용량 보충제, 고지방 식사와 함께 복용 시 간 부담이 커질 수 있음',
+        nutrient: 'alcoholG',
+      ),
+      MedicineWarning(
+        title: '보충제 과다 주의',
+        description: '고단백 보충제나 복합 영양제 과다 섭취는 피하는 것이 좋음',
+        nutrient: 'proteinG',
+      ),
+    ],
+    '소염진통제(NSAIDs)': [
+      MedicineWarning(
+        title: '신장 부담 주의',
+        description: '탈수 상태, 고단백 보충제, 음주와 겹치면 신장 부담이 커질 수 있음',
+        nutrient: 'proteinG',
+      ),
+    ],
+  };
+
+  static const _riskProfiles = <String, MedicationRiskProfile>{
+    '신장 투석': MedicationRiskProfile(
+      category: '신장 투석',
+      liverWeight: 0,
+      kidneyWeight: 18,
+      sensitiveToProtein: true,
+      sensitiveToAlcohol: false,
+      sensitiveToCaffeine: false,
+    ),
+    '피부과약(이소트레티노인 등)': MedicationRiskProfile(
+      category: '피부과약(이소트레티노인 등)',
+      liverWeight: 12,
+      kidneyWeight: 2,
+      sensitiveToProtein: true,
+      sensitiveToAlcohol: true,
+      sensitiveToCaffeine: false,
+    ),
+    '소염진통제(NSAIDs)': MedicationRiskProfile(
+      category: '소염진통제(NSAIDs)',
+      liverWeight: 4,
+      kidneyWeight: 10,
+      sensitiveToProtein: true,
+      sensitiveToAlcohol: true,
+      sensitiveToCaffeine: false,
+    ),
+    '이뇨제': MedicationRiskProfile(
+      category: '이뇨제',
+      liverWeight: 0,
+      kidneyWeight: 8,
+      sensitiveToProtein: false,
+      sensitiveToAlcohol: false,
+      sensitiveToCaffeine: true,
+    ),
+    'ACE억제제': MedicationRiskProfile(
+      category: 'ACE억제제',
+      liverWeight: 0,
+      kidneyWeight: 6,
+      sensitiveToProtein: false,
+      sensitiveToAlcohol: false,
+      sensitiveToCaffeine: false,
+    ),
+    '스타틴(고지혈증약)': MedicationRiskProfile(
+      category: '스타틴(고지혈증약)',
+      liverWeight: 6,
+      kidneyWeight: 0,
+      sensitiveToProtein: false,
+      sensitiveToAlcohol: true,
+      sensitiveToCaffeine: false,
+    ),
   };
 
   /// 약물 목록을 기반으로 관련 경고 반환
@@ -98,4 +186,16 @@ class MedicineService {
 
   /// 모든 약물 카테고리 목록 (UI 선택용)
   static List<String> get allCategories => _warnings.keys.toList();
+
+  static List<MedicationRiskProfile> getRiskProfiles(List<String> medications) {
+    final result = <MedicationRiskProfile>[];
+    for (final med in medications) {
+      for (final entry in _riskProfiles.entries) {
+        if (med.contains(entry.key)) {
+          result.add(entry.value);
+        }
+      }
+    }
+    return result;
+  }
 }

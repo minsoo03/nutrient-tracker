@@ -135,8 +135,11 @@ class ProfileStep2 extends StatelessWidget {
 class ProfileStep3 extends StatelessWidget {
   final bool hasKidney;
   final bool hasLiver;
+  final List<String> medicationOptions;
+  final List<String> selectedMedications;
   final ValueChanged<bool> onKidneyChanged;
   final ValueChanged<bool> onLiverChanged;
+  final void Function(String medication, bool selected) onMedicationToggle;
   final VoidCallback onSave;
   final bool isLoading;
 
@@ -144,8 +147,11 @@ class ProfileStep3 extends StatelessWidget {
     super.key,
     required this.hasKidney,
     required this.hasLiver,
+    required this.medicationOptions,
+    required this.selectedMedications,
     required this.onKidneyChanged,
     required this.onLiverChanged,
+    required this.onMedicationToggle,
     required this.onSave,
     required this.isLoading,
   });
@@ -177,6 +183,26 @@ class ProfileStep3 extends StatelessWidget {
             description: '단백질 섭취 기준이 보수적으로 조정됩니다',
             value: hasLiver,
             onChanged: onLiverChanged,
+          ),
+          const SizedBox(height: 24),
+          const Text('복용 중인 약',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text('선택한 약은 간 무리 수치 계산에 반영됩니다.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: medicationOptions.map((medication) {
+              final isSelected = selectedMedications.contains(medication);
+              return FilterChip(
+                label: Text(medication, style: const TextStyle(fontSize: 12)),
+                selected: isSelected,
+                onSelected: (selected) =>
+                    onMedicationToggle(medication, selected),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 40),
           FilledButton(

@@ -89,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return _HomeContent(
                   log: log,
                   targets: _targets,
+                  userProfile: _userProfile,
                   uid: uid,
                   date: _todayDate,
                   nutritionService: _nutritionService,
@@ -128,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class _HomeContent extends StatelessWidget {
   final DailyLogModel log;
   final NutritionTargets targets;
+  final UserModel? userProfile;
   final String uid;
   final String date;
   final NutritionService nutritionService;
@@ -135,6 +137,7 @@ class _HomeContent extends StatelessWidget {
   const _HomeContent({
     required this.log,
     required this.targets,
+    required this.userProfile,
     required this.uid,
     required this.date,
     required this.nutritionService,
@@ -145,6 +148,9 @@ class _HomeContent extends StatelessWidget {
     final liverLoad = NutritionCalculator.estimateLiverLoad(
       log: log,
       targets: targets,
+      medications: userProfile?.medications ?? const [],
+      hasLiverDisease: userProfile?.hasLiverDisease ?? false,
+      hasKidneyDisease: userProfile?.hasKidneyDisease ?? false,
     );
 
     return SingleChildScrollView(

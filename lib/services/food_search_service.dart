@@ -61,8 +61,12 @@ class FoodSearchService {
   }
 
   Future<List<FoodModel>> _searchKorean(String query) async {
-    final merged = <FoodModel>[];
+    final standardized = _prependStandardizedResults(query, const []);
+    final merged = <FoodModel>[...standardized];
     final seen = <String>{};
+    for (final food in merged) {
+      seen.add('${food.source}:${food.name}');
+    }
 
     for (final variant in _buildKoreanQueryVariants(query)) {
       final results = await _koreanService.searchKoreanFoods(variant);
@@ -73,7 +77,7 @@ class FoodSearchService {
         }
       }
 
-      if (merged.isNotEmpty) {
+      if (merged.length > standardized.length) {
         return merged;
       }
     }
@@ -89,12 +93,12 @@ class FoodSearchService {
           merged.add(food);
         }
       }
-      if (merged.isNotEmpty) {
+      if (merged.length > standardized.length) {
         return merged;
       }
     }
 
-    return [];
+    return merged;
   }
 
   Future<List<FoodModel>> _searchUsda(String query) async {

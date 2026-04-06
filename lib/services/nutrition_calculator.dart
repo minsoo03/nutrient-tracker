@@ -1,5 +1,6 @@
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
+import 'package:nutrient_tracker/services/medicine_service.dart';
 
 class NutritionTargets {
   final int calories;
@@ -126,6 +127,9 @@ class NutritionCalculator {
   static double estimateLiverLoad({
     required DailyLogModel log,
     required NutritionTargets targets,
+    List<String> medications = const [],
+    bool hasLiverDisease = false,
+    bool hasKidneyDisease = false,
   }) {
     final sugarScore = ((log.totalSugarG / targets.sugarMax) * 35).clamp(0.0, 35.0);
     final fatScore = ((log.totalFatG / targets.fatG) * 25).clamp(0.0, 25.0);
@@ -134,7 +138,40 @@ class NutritionCalculator {
     final calorieScore =
         ((log.totalCalories / targets.calories) * 15).clamp(0.0, 15.0);
     final alcoholScore = (log.totalAlcoholG * 2).clamp(0.0, 10.0);
+    final proteinOverRatio =
+        ((log.totalProteinG - targets.proteinG) / targets.proteinG).clamp(0.0, 1.0);
+    final proteinScore = (proteinOverRatio * 8).clamp(0.0, 8.0);
 
-    return sugarScore + fatScore + caffeineScore + calorieScore + alcoholScore;
+    final riskProfiles = MedicineService.getRiskProfiles(medications);
+    final medicationBaseScore = riskProfiles.fold<double>(
+      0,
+      (sum, profile) => sum + profile.liverWeight,
+    ).clamp(0.0, 20.0);
+    final medicationProteinScore = riskProfiles
+        .where((profile) => profile.sensitiveToProtein)
+        .fold<double>(0, (sum, _) => sum + proteinScore * 0.75)
+        .clamp(0.0, 12.0);
+    final medicationAlcoholScore = riskProfiles
+        .where((profile) => profile.sensitiveToAlcohol)
+        .fold<double>(0, (sum, _) => sum + (log.totalAlcoholG / 4))
+        .clamp(0.0, 10.0);
+    final medicationCaffeineScore = riskProfiles
+        .where((profile) => profile.sensitiveToCaffeine)
+        .fold<double>(0, (sum, _) => sum + (log.totalCaffeineMg / 120))
+        .clamp(0.0, 5.0);
+    final diseaseScore = (hasLiverDisease ? 8.0 : 0.0) + (hasKidneyDisease ? 4.0 : 0.0);
+
+    return (sugarScore +
+            fatScore +
+            caffeineScore +
+            calorieScore +
+            alcoholScore +
+            proteinScore +
+            medicationBaseScore +
+            medicationProteinScore +
+            medicationAlcoholScore +
+            medicationCaffeineScore +
+            diseaseScore)
+        .clamp(0.0, 100.0);
   }
 }
