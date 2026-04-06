@@ -51,7 +51,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     setState(() {
       _loading = false;
       _results = results;
-      _status = results.isEmpty ? '검색 결과가 없습니다.\n영문으로 검색하거나 식품명을 다시 확인해주세요.' : '';
+      _status = results.isEmpty
+          ? '검색 결과가 없습니다.\n한글은 식품명 전체 또는 띄어쓰기 없이 입력해보세요.'
+          : '';
     });
   }
 

@@ -13,16 +13,35 @@ class FoodSearchService {
   /// - 한글: 식품안전처 우선 → 결과 없으면 USDA fallback
   /// - 영문: USDA 검색
   Future<List<FoodModel>> searchFoods(String query) async {
-    if (query.trim().isEmpty) return [];
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return [];
 
-    if (_containsKorean(query)) {
-      final krResults = await _koreanService.searchKoreanFoods(query);
-      if (krResults.isNotEmpty) return krResults;
-      // 한글 검색 실패 시 영문 변환 없이 빈 결과 + 안내
-      return [];
+    if (_containsKorean(normalizedQuery)) {
+      return _searchKorean(normalizedQuery);
     }
 
-    return _searchUsda(query);
+    return _searchUsda(normalizedQuery);
+  }
+
+  Future<List<FoodModel>> _searchKorean(String query) async {
+    final merged = <FoodModel>[];
+    final seen = <String>{};
+
+    for (final variant in _buildKoreanQueryVariants(query)) {
+      final results = await _koreanService.searchKoreanFoods(variant);
+      for (final food in _rankFoods(results, query)) {
+        final key = '${food.source}:${food.name}';
+        if (seen.add(key)) {
+          merged.add(food);
+        }
+      }
+
+      if (merged.isNotEmpty) {
+        return merged;
+      }
+    }
+
+    return [];
   }
 
   Future<List<FoodModel>> _searchUsda(String query) async {
@@ -48,6 +67,52 @@ class FoodSearchService {
     } catch (_) {
       return [];
     }
+  }
+
+  List<String> _buildKoreanQueryVariants(String query) {
+    final collapsed = query.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final compact = collapsed.replaceAll(' ', '');
+    final cleaned = compact.replaceAll(RegExp(r'[^\uAC00-\uD7A3A-Za-z0-9]'), '');
+    final tokens = collapsed
+        .split(' ')
+        .map((token) => token.trim())
+        .where((token) => token.length >= 2);
+
+    final variants = <String>[
+      collapsed,
+      compact,
+      cleaned,
+      ...tokens,
+    ];
+
+    final unique = <String>{};
+    return variants
+        .where((variant) => variant.isNotEmpty && unique.add(variant))
+        .toList();
+  }
+
+  List<FoodModel> _rankFoods(List<FoodModel> foods, String originalQuery) {
+    final compactQuery = originalQuery.replaceAll(RegExp(r'\s+'), '');
+    final ranked = [...foods];
+
+    ranked.sort((a, b) {
+      final aScore = _matchScore(a.name, originalQuery, compactQuery);
+      final bScore = _matchScore(b.name, originalQuery, compactQuery);
+      if (aScore != bScore) return bScore.compareTo(aScore);
+      return a.name.length.compareTo(b.name.length);
+    });
+
+    return ranked;
+  }
+
+  int _matchScore(String name, String originalQuery, String compactQuery) {
+    final compactName = name.replaceAll(RegExp(r'\s+'), '');
+
+    if (compactName == compactQuery) return 4;
+    if (name == originalQuery) return 3;
+    if (compactName.contains(compactQuery)) return 2;
+    if (name.contains(originalQuery)) return 1;
+    return 0;
   }
 
   bool _containsKorean(String text) {
