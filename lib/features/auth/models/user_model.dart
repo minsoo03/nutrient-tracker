@@ -14,6 +14,9 @@ class UserModel {
   final HealthGoal goal;
   final int dailyCalorieTarget;
   final int dailyProteinTarget;
+  final int dailyCarbsTarget;
+  final int dailyFatTarget;
+  final int dailySodiumTarget;
   final bool hasKidneyDisease;
   final bool hasLiverDisease;
   final List<String> medications;
@@ -29,6 +32,9 @@ class UserModel {
     required this.goal,
     required this.dailyCalorieTarget,
     required this.dailyProteinTarget,
+    required this.dailyCarbsTarget,
+    required this.dailyFatTarget,
+    required this.dailySodiumTarget,
     required this.hasKidneyDisease,
     required this.hasLiverDisease,
     required this.medications,
@@ -38,21 +44,24 @@ class UserModel {
   factory UserModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
+    final d = doc.data()!;
     return UserModel(
       uid: doc.id,
-      name: data['name'] as String,
-      age: data['age'] as int,
-      gender: Gender.values.byName(data['gender'] as String),
-      heightCm: (data['heightCm'] as num).toDouble(),
-      weightKg: (data['weightKg'] as num).toDouble(),
-      goal: HealthGoal.values.byName(data['goal'] as String),
-      dailyCalorieTarget: data['dailyCalorieTarget'] as int,
-      dailyProteinTarget: data['dailyProteinTarget'] as int,
-      hasKidneyDisease: data['hasKidneyDisease'] as bool,
-      hasLiverDisease: data['hasLiverDisease'] as bool,
-      medications: List<String>.from(data['medications'] as List),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      name: d['name'] as String,
+      age: d['age'] as int,
+      gender: Gender.values.byName(d['gender'] as String),
+      heightCm: (d['heightCm'] as num).toDouble(),
+      weightKg: (d['weightKg'] as num).toDouble(),
+      goal: HealthGoal.values.byName(d['goal'] as String),
+      dailyCalorieTarget: (d['dailyCalorieTarget'] ?? 2000) as int,
+      dailyProteinTarget: (d['dailyProteinTarget'] ?? 60) as int,
+      dailyCarbsTarget: (d['dailyCarbsTarget'] ?? 250) as int,
+      dailyFatTarget: (d['dailyFatTarget'] ?? 65) as int,
+      dailySodiumTarget: (d['dailySodiumTarget'] ?? 2300) as int,
+      hasKidneyDisease: d['hasKidneyDisease'] as bool,
+      hasLiverDisease: d['hasLiverDisease'] as bool,
+      medications: List<String>.from(d['medications'] as List),
+      createdAt: (d['createdAt'] as Timestamp).toDate(),
     );
   }
 
@@ -67,6 +76,9 @@ class UserModel {
       'goal': goal.name,
       'dailyCalorieTarget': dailyCalorieTarget,
       'dailyProteinTarget': dailyProteinTarget,
+      'dailyCarbsTarget': dailyCarbsTarget,
+      'dailyFatTarget': dailyFatTarget,
+      'dailySodiumTarget': dailySodiumTarget,
       'hasKidneyDisease': hasKidneyDisease,
       'hasLiverDisease': hasLiverDisease,
       'medications': medications,
@@ -75,19 +87,12 @@ class UserModel {
   }
 
   UserModel copyWith({
-    String? uid,
-    String? name,
-    int? age,
-    Gender? gender,
-    double? heightCm,
-    double? weightKg,
-    HealthGoal? goal,
-    int? dailyCalorieTarget,
-    int? dailyProteinTarget,
-    bool? hasKidneyDisease,
-    bool? hasLiverDisease,
-    List<String>? medications,
-    DateTime? createdAt,
+    String? uid, String? name, int? age, Gender? gender,
+    double? heightCm, double? weightKg, HealthGoal? goal,
+    int? dailyCalorieTarget, int? dailyProteinTarget,
+    int? dailyCarbsTarget, int? dailyFatTarget, int? dailySodiumTarget,
+    bool? hasKidneyDisease, bool? hasLiverDisease,
+    List<String>? medications, DateTime? createdAt,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -99,6 +104,9 @@ class UserModel {
       goal: goal ?? this.goal,
       dailyCalorieTarget: dailyCalorieTarget ?? this.dailyCalorieTarget,
       dailyProteinTarget: dailyProteinTarget ?? this.dailyProteinTarget,
+      dailyCarbsTarget: dailyCarbsTarget ?? this.dailyCarbsTarget,
+      dailyFatTarget: dailyFatTarget ?? this.dailyFatTarget,
+      dailySodiumTarget: dailySodiumTarget ?? this.dailySodiumTarget,
       hasKidneyDisease: hasKidneyDisease ?? this.hasKidneyDisease,
       hasLiverDisease: hasLiverDisease ?? this.hasLiverDisease,
       medications: medications ?? this.medications,

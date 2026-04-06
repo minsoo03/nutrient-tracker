@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
-import 'package:nutrient_tracker/features/auth/widgets/profile_form_widgets.dart';
+import 'package:nutrient_tracker/features/auth/widgets/profile_setup_steps.dart';
+import 'package:nutrient_tracker/services/nutrition_calculator.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -12,68 +14,86 @@ class ProfileSetupScreen extends StatefulWidget {
 }
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
-  final _nameController = TextEditingController();
-  final _ageController = TextEditingController();
-  final _heightController = TextEditingController();
-  final _weightController = TextEditingController();
+  final _pageCtrl = PageController();
+  final _nameCtrl = TextEditingController();
+  final _ageCtrl = TextEditingController();
+  final _heightCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
 
-  Gender _selectedGender = Gender.male;
-  HealthGoal _selectedGoal = HealthGoal.health;
-  bool _hasKidneyDisease = false;
-  bool _hasLiverDisease = false;
+  int _step = 0;
+  Gender _gender = Gender.male;
+  HealthGoal _goal = HealthGoal.health;
+  bool _hasKidney = false;
+  bool _hasLiver = false;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    _heightController.dispose();
-    _weightController.dispose();
+    _pageCtrl.dispose();
+    _nameCtrl.dispose();
+    _ageCtrl.dispose();
+    _heightCtrl.dispose();
+    _weightCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSaveProfile() async {
-    setState(() {
-      _isLoading = true;
-    });
+  void _nextPage() {
+    _pageCtrl.nextPage(
+        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    setState(() => _step++);
+  }
 
+  void _prevPage() {
+    _pageCtrl.previousPage(
+        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    setState(() => _step--);
+  }
+
+  Future<void> _handleSave() async {
+    setState(() => _isLoading = true);
     try {
-      final authService = AuthService();
-      final user = authService._auth.currentUser;
+      final auth = AuthService();
+      final user = auth.currentUser;
+      if (user == null) throw Exception('로그인이 필요합니다');
 
-      if (user == null) throw Exception('User not authenticated');
+      final targets = NutritionCalculator.calculate(
+        age: int.parse(_ageCtrl.text),
+        gender: _gender,
+        heightCm: double.parse(_heightCtrl.text),
+        weightKg: double.parse(_weightCtrl.text),
+        goal: _goal,
+        hasKidneyDisease: _hasKidney,
+        hasLiverDisease: _hasLiver,
+      );
 
-      final userModel = UserModel(
+      await auth.saveUserProfile(UserModel(
         uid: user.uid,
-        name: _nameController.text.trim(),
-        age: int.parse(_ageController.text),
-        gender: _selectedGender,
-        heightCm: double.parse(_heightController.text),
-        weightKg: double.parse(_weightController.text),
-        goal: _selectedGoal,
-        dailyCalorieTarget: 2000,
-        dailyProteinTarget: 150,
-        hasKidneyDisease: _hasKidneyDisease,
-        hasLiverDisease: _hasLiverDisease,
+        name: _nameCtrl.text.trim(),
+        age: int.parse(_ageCtrl.text),
+        gender: _gender,
+        heightCm: double.parse(_heightCtrl.text),
+        weightKg: double.parse(_weightCtrl.text),
+        goal: _goal,
+        dailyCalorieTarget: targets.calories,
+        dailyProteinTarget: targets.proteinG,
+        dailyCarbsTarget: targets.carbsG,
+        dailyFatTarget: targets.fatG,
+        dailySodiumTarget: targets.sodiumMg,
+        hasKidneyDisease: _hasKidney,
+        hasLiverDisease: _hasLiver,
         medications: [],
         createdAt: DateTime.now(),
-      );
+      ));
 
-      await authService.saveUserProfile(userModel);
-
-      if (mounted) {
-        context.go('/home');
-      }
+      if (mounted) context.go('/home');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -82,93 +102,40 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('프로필 설정'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: '이름'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _ageController,
-              decoration: const InputDecoration(labelText: '나이'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            GenderDropdown(
-              selectedGender: _selectedGender,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedGender = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _heightController,
-              decoration: const InputDecoration(labelText: '신장 (cm)'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _weightController,
-              decoration: const InputDecoration(labelText: '몸무게 (kg)'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            HealthGoalDropdown(
-              selectedGoal: _selectedGoal,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedGoal = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 24),
-            DiseaseToggleRow(
-              label: '신장 질환 여부',
-              value: _hasKidneyDisease,
-              onChanged: (value) {
-                setState(() {
-                  _hasKidneyDisease = value;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            DiseaseToggleRow(
-              label: '간 질환 여부',
-              value: _hasLiverDisease,
-              onChanged: (value) {
-                setState(() {
-                  _hasLiverDisease = value;
-                });
-              },
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleSaveProfile,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text('저장'),
-            ),
-          ],
+        leading: _step > 0
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back), onPressed: _prevPage)
+            : null,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: (_step + 1) / 3,
+            backgroundColor: Colors.grey[200],
+            color: AppColors.primary,
+          ),
         ),
+      ),
+      body: PageView(
+        controller: _pageCtrl,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          ProfileStep1(
+            nameCtrl: _nameCtrl, ageCtrl: _ageCtrl, gender: _gender,
+            onGenderChanged: (g) => setState(() => _gender = g),
+            onNext: _nextPage,
+          ),
+          ProfileStep2(
+            heightCtrl: _heightCtrl, weightCtrl: _weightCtrl, goal: _goal,
+            onGoalChanged: (g) => setState(() => _goal = g),
+            onNext: _nextPage,
+          ),
+          ProfileStep3(
+            hasKidney: _hasKidney, hasLiver: _hasLiver,
+            onKidneyChanged: (v) => setState(() => _hasKidney = v),
+            onLiverChanged: (v) => setState(() => _hasLiver = v),
+            onSave: _handleSave, isLoading: _isLoading,
+          ),
+        ],
       ),
     );
   }

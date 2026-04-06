@@ -121,6 +121,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      _emailController.text = 'admin@nutrient.dev';
+                      _passwordController.text = 'Admin1234!';
+                      _handleLogin();
+                    },
+              icon: const Icon(Icons.developer_mode, size: 18),
+              label: const Text('테스트 계정으로 로그인 (개발용)'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+              ),
+            ),
           ],
         ),
       ),
