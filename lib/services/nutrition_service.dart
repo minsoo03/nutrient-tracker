@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/models/food_entry_model.dart';
 
@@ -46,8 +47,14 @@ class NutritionService {
     String date,
     FoodEntryModel entry,
   ) async {
-    await _entriesCol(uid, date).add(entry.toFirestore());
-    await _recalculateDailyTotals(uid, date);
+    try {
+      await _entriesCol(uid, date).add(entry.toFirestore());
+      await _recalculateDailyTotals(uid, date);
+    } catch (e, st) {
+      debugPrint('❌ addFoodEntry 실패: uid=$uid, date=$date, error=$e');
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
   }
 
   /// Delete a food entry and recalculate daily totals.
@@ -75,7 +82,7 @@ class NutritionService {
   Future<void> _recalculateDailyTotals(String uid, String date) async {
     final snap = await _entriesCol(uid, date).get();
     double cal = 0, carbs = 0, protein = 0, fat = 0;
-    double sugar = 0, fiber = 0, sodium = 0, caffeine = 0;
+    double sugar = 0, fiber = 0, sodium = 0, caffeine = 0, alcohol = 0;
 
     for (final doc in snap.docs) {
       final d = doc.data();
@@ -87,6 +94,7 @@ class NutritionService {
       fiber += (d['fiber_g'] ?? 0.0).toDouble();
       sodium += (d['sodium_mg'] ?? 0.0).toDouble();
       caffeine += (d['caffeine_mg'] ?? 0.0).toDouble();
+      alcohol += (d['alcohol_g'] ?? 0.0).toDouble();
     }
 
     final log = DailyLogModel(
@@ -99,7 +107,7 @@ class NutritionService {
       totalFiberG: fiber,
       totalSodiumMg: sodium,
       totalCaffeineMg: caffeine,
-      totalAlcoholG: 0,
+      totalAlcoholG: alcohol,
       totalWaterMl: 0,
       updatedAt: DateTime.now(),
     );

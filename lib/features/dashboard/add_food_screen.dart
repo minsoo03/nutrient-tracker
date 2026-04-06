@@ -7,6 +7,7 @@ import 'package:nutrient_tracker/models/food_model.dart';
 import 'package:nutrient_tracker/services/food_search_service.dart';
 import 'package:nutrient_tracker/services/nutrition_service.dart';
 import 'package:nutrient_tracker/utils/food_grouper.dart';
+import 'package:nutrient_tracker/utils/portion_helper.dart';
 
 class AddFoodScreen extends StatefulWidget {
   const AddFoodScreen({super.key});
@@ -61,14 +62,60 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     final dialogResult = await showAmountDialog(context, food);
     if (dialogResult == null || !mounted) return;
 
-    final (amountG, mealType) = dialogResult;
+    final (
+      amountG,
+      mealType,
+      extraNutrition,
+      companionLabel,
+      caffeineOverrideMg,
+      sugarOverrideG,
+      isZeroDrink,
+    ) =
+        dialogResult;
     final uid = _authService.currentUser?.uid ?? '';
-    if (uid.isEmpty) return;
+    if (uid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인 정보가 없어 저장할 수 없습니다. 다시 로그인해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    final scaled = food.per100g.scaled(amountG);
+    final scaledBase = food.per100g.scaled(amountG);
+    final adjustedSugarG = sugarOverrideG ?? scaledBase.sugarG;
+    final sugarDelta = adjustedSugarG - scaledBase.sugarG;
+    final adjustedCarbsG = (scaledBase.carbsG + sugarDelta).clamp(0.0, double.infinity);
+    final adjustedCalories =
+        (scaledBase.calories + sugarDelta * 4).clamp(0.0, double.infinity);
+    final finalCaffeineMg =
+        (caffeineOverrideMg ?? scaledBase.caffeineMg) + extraNutrition.caffeineMg;
+    final scaled = FoodNutrition(
+      calories: adjustedCalories + extraNutrition.calories,
+      carbsG: adjustedCarbsG + extraNutrition.carbsG,
+      proteinG: scaledBase.proteinG + extraNutrition.proteinG,
+      fatG: scaledBase.fatG + extraNutrition.fatG,
+      sugarG: adjustedSugarG + extraNutrition.sugarG,
+      fiberG: scaledBase.fiberG + extraNutrition.fiberG,
+      sodiumMg: scaledBase.sodiumMg + extraNutrition.sodiumMg,
+      caffeineMg: finalCaffeineMg,
+      alcoholG: scaledBase.alcoholG + extraNutrition.alcoholG,
+    );
+
+    final foodNameParts = <String>[];
+    if (isZeroDrink) {
+      foodNameParts.add('제로');
+    }
+    if (companionLabel != null) {
+      foodNameParts.add(companionLabel);
+    }
+    final foodNameSuffix = foodNameParts.join(' · ');
     final entry = FoodEntryModel(
       foodId: food.id,
-      foodName: food.name,
+      foodName: foodNameSuffix.isEmpty
+          ? food.name
+          : '${food.name} · $foodNameSuffix',
       amountG: amountG,
       calories: scaled.calories,
       carbsG: scaled.carbsG,
@@ -77,7 +124,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       sugarG: scaled.sugarG,
       fiberG: scaled.fiberG,
       sodiumMg: scaled.sodiumMg,
-      caffeineMg: scaled.caffeineMg,
+      caffeineMg: finalCaffeineMg,
+      alcoholG: scaled.alcoholG,
       loggedAt: DateTime.now(),
       mealType: mealType,
     );
@@ -85,15 +133,17 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     try {
       await _nutritionService.addFoodEntry(uid, _todayDate, entry);
       if (!mounted) return;
+      final amountUnit = PortionHelper.usesMilliliters(food.name) ? 'ml' : 'g';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${food.name} 추가됨 (${amountG.toStringAsFixed(0)}g)'),
+          content: Text('${food.name} 추가됨 (${amountG.toStringAsFixed(0)}$amountUnit)'),
           backgroundColor: AppColors.primary,
           duration: const Duration(seconds: 2),
         ),
       );
       Navigator.pop(context);
     } catch (e) {
+      debugPrint('❌ 음식 추가 실패: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('저장 실패: $e'), backgroundColor: Colors.red),

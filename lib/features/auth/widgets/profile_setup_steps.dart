@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nutrient_tracker/core/widgets/numeric_input_field.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/widgets/profile_form_widgets.dart';
 
@@ -41,12 +42,12 @@ class ProfileStep1 extends StatelessWidget {
                 labelText: '이름', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 16),
-          TextField(
+          NumericInputField(
             controller: ageCtrl,
             onChanged: (_) => (context as Element).markNeedsBuild(),
-            decoration: const InputDecoration(
-                labelText: '나이', suffixText: '세', border: OutlineInputBorder()),
-            keyboardType: TextInputType.number,
+            labelText: '나이',
+            suffixText: '세',
+            allowDecimal: false,
           ),
           const SizedBox(height: 24),
           const Text('성별',
@@ -98,28 +99,20 @@ class ProfileStep2 extends StatelessWidget {
           const SizedBox(height: 32),
           Row(children: [
             Expanded(
-              child: TextField(
+              child: NumericInputField(
                 controller: heightCtrl,
                 onChanged: (_) => (context as Element).markNeedsBuild(),
-                decoration: const InputDecoration(
-                    labelText: '키',
-                    suffixText: 'cm',
-                    border: OutlineInputBorder()),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                labelText: '키',
+                suffixText: 'cm',
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: TextField(
+              child: NumericInputField(
                 controller: weightCtrl,
                 onChanged: (_) => (context as Element).markNeedsBuild(),
-                decoration: const InputDecoration(
-                    labelText: '몸무게',
-                    suffixText: 'kg',
-                    border: OutlineInputBorder()),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                labelText: '몸무게',
+                suffixText: 'kg',
               ),
             ),
           ]),

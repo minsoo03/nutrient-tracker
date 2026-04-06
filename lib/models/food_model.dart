@@ -7,6 +7,7 @@ class FoodNutrition {
   final double fiberG;
   final double sodiumMg;
   final double caffeineMg;
+  final double alcoholG;
 
   const FoodNutrition({
     required this.calories,
@@ -17,6 +18,7 @@ class FoodNutrition {
     required this.fiberG,
     required this.sodiumMg,
     required this.caffeineMg,
+    this.alcoholG = 0,
   });
 
   FoodNutrition scaled(double grams) {
@@ -30,6 +32,21 @@ class FoodNutrition {
       fiberG: fiberG * ratio,
       sodiumMg: sodiumMg * ratio,
       caffeineMg: caffeineMg * ratio,
+      alcoholG: alcoholG * ratio,
+    );
+  }
+
+  FoodNutrition plus(FoodNutrition other) {
+    return FoodNutrition(
+      calories: calories + other.calories,
+      carbsG: carbsG + other.carbsG,
+      proteinG: proteinG + other.proteinG,
+      fatG: fatG + other.fatG,
+      sugarG: sugarG + other.sugarG,
+      fiberG: fiberG + other.fiberG,
+      sodiumMg: sodiumMg + other.sodiumMg,
+      caffeineMg: caffeineMg + other.caffeineMg,
+      alcoholG: alcoholG + other.alcoholG,
     );
   }
 }
@@ -40,6 +57,9 @@ class FoodModel {
   final String? nameEn;
   final String source;
   final FoodNutrition per100g;
+  final String nutritionBasisLabel;
+  final double? packageAmount;
+  final String? packageUnit;
   final int variantCount; // 1=단일, >1=N종 평균값
 
   const FoodModel({
@@ -48,8 +68,24 @@ class FoodModel {
     this.nameEn,
     required this.source,
     required this.per100g,
+    this.nutritionBasisLabel = '100g',
+    this.packageAmount,
+    this.packageUnit,
     this.variantCount = 1,
   });
+
+  String get displayBasisLabel => '$nutritionBasisLabel 기준';
+
+  String? get packageCaloriesSummary {
+    if (packageAmount == null || packageUnit == null) return null;
+    if (packageUnit != 'g' && packageUnit != 'ml') return null;
+
+    final totalCalories = per100g.scaled(packageAmount!).calories;
+    final amountLabel = packageAmount! % 1 == 0
+        ? packageAmount!.toStringAsFixed(0)
+        : packageAmount!.toStringAsFixed(1);
+    return '총 $amountLabel${packageUnit!} 약 ${totalCalories.toStringAsFixed(0)} kcal';
+  }
 
   /// 식품안전처 I2790 응답 파싱
   /// 주요 필드: FOOD_NM_KR, ENERC(kcal), PROT(g), FAT(g), CHOC(g),
@@ -62,6 +98,7 @@ class FoodModel {
       id: 'mfds_${json['FOOD_CD'] ?? json['FOOD_NM_KR']}',
       name: json['FOOD_NM_KR'] ?? '',
       source: 'kr_mfds',
+      nutritionBasisLabel: '100g',
       per100g: FoodNutrition(
         calories: parseDouble('ENERC'),
         carbsG: parseDouble('CHOC'),
@@ -71,6 +108,7 @@ class FoodModel {
         fiberG: parseDouble('FIBT'),
         sodiumMg: parseDouble('NA'),
         caffeineMg: parseDouble('CAFFN'),
+        alcoholG: parseDouble('ALCOHOL'),
       ),
     );
   }
@@ -86,22 +124,41 @@ class FoodModel {
       return 0.0;
     }
 
+    final basisLabel =
+        (json['nutConSrtrQua']?.toString().trim().isNotEmpty ?? false)
+            ? json['nutConSrtrQua'].toString().trim()
+            : '100g';
+    final basisInfo = _parseAmountAndUnit(basisLabel);
+    final normalizationFactor = basisInfo != null &&
+            (basisInfo.$2 == 'g' || basisInfo.$2 == 'ml') &&
+            basisInfo.$1 > 0
+        ? 100.0 / basisInfo.$1
+        : 1.0;
+    final packageInfo = _parseAmountAndUnit(json['foodSize']?.toString());
+
     final name = (json['foodNm'] ?? json['prdlstNm'] ?? json['hfoodNm'] ?? '').toString();
     final code = (json['foodCd'] ?? json['prdlstReportNo'] ?? json['hfoodCd'] ?? name).toString();
+    final caffeineValue = pickValue(['caffn', 'caffeine']);
+    final fallbackCaffeine = _fallbackCaffeinePer100(name);
 
     return FoodModel(
       id: '${source}_$code',
       name: name,
       source: source,
+      nutritionBasisLabel: basisLabel,
+      packageAmount: packageInfo?.$1,
+      packageUnit: packageInfo?.$2,
       per100g: FoodNutrition(
-        calories: pickValue(['enerc', 'calorie', 'amtNum1']),
-        carbsG: pickValue(['chocdf', 'carbs', 'amtNum6']),
-        proteinG: pickValue(['prot', 'protein', 'amtNum3']),
-        fatG: pickValue(['fatce', 'fat', 'amtNum4']),
-        sugarG: pickValue(['sugar', 'amtNum7']),
-        fiberG: pickValue(['fibtg', 'dietaryFiber', 'amtNum8']),
-        sodiumMg: pickValue(['nat', 'sodium', 'amtNum13']),
-        caffeineMg: pickValue(['caffn', 'caffeine']),
+        calories: pickValue(['enerc', 'calorie', 'amtNum1']) * normalizationFactor,
+        carbsG: pickValue(['chocdf', 'carbs', 'amtNum6']) * normalizationFactor,
+        proteinG: pickValue(['prot', 'protein', 'amtNum3']) * normalizationFactor,
+        fatG: pickValue(['fatce', 'fat', 'amtNum4']) * normalizationFactor,
+        sugarG: pickValue(['sugar', 'amtNum7']) * normalizationFactor,
+        fiberG: pickValue(['fibtg', 'dietaryFiber', 'amtNum8']) * normalizationFactor,
+        sodiumMg: pickValue(['nat', 'sodium', 'amtNum13']) * normalizationFactor,
+        caffeineMg: (caffeineValue > 0 ? caffeineValue : fallbackCaffeine) *
+            normalizationFactor,
+        alcoholG: pickValue(['alcohol', 'alc', 'alcoholG']) * normalizationFactor,
       ),
     );
   }
@@ -122,6 +179,7 @@ class FoodModel {
       name: json['description'] ?? '',
       nameEn: json['description'],
       source: 'usda',
+      nutritionBasisLabel: '100g',
       per100g: FoodNutrition(
         calories: nutrientValue(1008),
         carbsG: nutrientValue(1005),
@@ -131,7 +189,46 @@ class FoodModel {
         fiberG: nutrientValue(1079),
         sodiumMg: nutrientValue(1093),
         caffeineMg: nutrientValue(1057),
+        alcoholG: nutrientValue(1018),
       ),
     );
+  }
+
+  static (double, String)? _parseAmountAndUnit(String? raw) {
+    if (raw == null) return null;
+    final text = raw.trim().toLowerCase();
+    if (text.isEmpty) return null;
+
+    final match = RegExp(r'(\d+(?:\.\d+)?)\s*(g|ml)').firstMatch(text);
+    if (match == null) return null;
+
+    final amount = double.tryParse(match.group(1)!);
+    final unit = match.group(2);
+    if (amount == null || unit == null) return null;
+    return (amount, unit);
+  }
+
+  static double _fallbackCaffeinePer100(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('에너지드링크') ||
+        lower.contains('energy drink') ||
+        lower.contains('energydrink') ||
+        lower.contains('monster') ||
+        lower.contains('red bull') ||
+        lower.contains('redbull') ||
+        lower.contains('핫식스')) {
+      // Common energy drinks are roughly 30mg caffeine per 100ml.
+      return 30.0;
+    }
+    if (lower.contains('콜라') ||
+        lower.contains('cola') ||
+        lower.contains('coke') ||
+        lower.contains('코카콜라') ||
+        lower.contains('펩시') ||
+        lower.contains('pepsi')) {
+      // Cola drinks are commonly around 8-12mg caffeine per 100ml.
+      return 10.0;
+    }
+    return 0.0;
   }
 }

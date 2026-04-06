@@ -50,6 +50,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _handleSave() async {
+    if (_nameCtrl.text.trim().isEmpty ||
+        _ageCtrl.text.trim().isEmpty ||
+        _heightCtrl.text.trim().isEmpty ||
+        _weightCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('이름, 나이, 키, 몸무게를 모두 입력해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final auth = AuthService();

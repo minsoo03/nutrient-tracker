@@ -24,6 +24,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = '이메일과 비밀번호를 입력해주세요';
+      });
+      return;
+    }
+
     setState(() {
       _errorMessage = null;
       _isLoading = true;
@@ -31,17 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final authService = AuthService();
-      await authService.signInWithEmail(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
+      await authService.signInWithEmail(email, password);
 
       if (mounted) {
         context.go('/home');
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       if (mounted) {

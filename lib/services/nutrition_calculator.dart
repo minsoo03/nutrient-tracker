@@ -1,3 +1,4 @@
+import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 
 class NutritionTargets {
@@ -28,12 +29,34 @@ class NutritionTargets {
     fatG: 65,
     sodiumMg: 2300,
     caffeineMax: 400,
-    sugarMax: 50,
+    sugarMax: 100,
     fiberMin: 25,
   );
 }
 
 class NutritionCalculator {
+  static int recommendedProteinTarget({
+    required double weightKg,
+    required HealthGoal goal,
+    required bool hasKidneyDisease,
+    required bool hasLiverDisease,
+  }) {
+    double gramsPerKg = switch (goal) {
+      HealthGoal.muscle => 1.4,
+      HealthGoal.diet => 1.0,
+      HealthGoal.medical => 0.8,
+      _ => 1.0,
+    };
+
+    if (hasKidneyDisease) {
+      gramsPerKg = 0.8;
+    } else if (hasLiverDisease) {
+      gramsPerKg = gramsPerKg.clamp(0.8, 1.0);
+    }
+
+    return (weightKg * gramsPerKg).round();
+  }
+
   /// Mifflin-St Jeor BMR + TDEE + 목표/질환 보정
   static NutritionTargets calculate({
     required int age,
@@ -73,18 +96,19 @@ class NutritionCalculator {
       _ /* health */    => (0.50, 0.25, 0.25),
     };
 
-    int proteinG = (calories * pRatio / 4).round();
+    int proteinG = recommendedProteinTarget(
+      weightKg: weightKg,
+      goal: goal,
+      hasKidneyDisease: hasKidneyDisease,
+      hasLiverDisease: hasLiverDisease,
+    );
     int carbsG   = (calories * cRatio / 4).round();
     int fatG     = (calories * fRatio / 9).round();
     int sodiumMg = 2300;
 
     // 질환 보정
     if (hasKidneyDisease) {
-      proteinG = proteinG.clamp(0, (0.8 * weightKg).round());
       sodiumMg = 1500;
-    }
-    if (hasLiverDisease) {
-      proteinG = proteinG.clamp(0, (1.0 * weightKg).round());
     }
 
     return NutritionTargets(
@@ -94,8 +118,23 @@ class NutritionCalculator {
       fatG: fatG,
       sodiumMg: sodiumMg,
       caffeineMax: goal == HealthGoal.medical ? 200 : 400,
-      sugarMax: goal == HealthGoal.diet ? 25 : 50,
+      sugarMax: 100,
       fiberMin: gender == Gender.male ? 38 : 25,
     );
+  }
+
+  static double estimateLiverLoad({
+    required DailyLogModel log,
+    required NutritionTargets targets,
+  }) {
+    final sugarScore = ((log.totalSugarG / targets.sugarMax) * 35).clamp(0.0, 35.0);
+    final fatScore = ((log.totalFatG / targets.fatG) * 25).clamp(0.0, 25.0);
+    final caffeineScore =
+        ((log.totalCaffeineMg / targets.caffeineMax) * 15).clamp(0.0, 15.0);
+    final calorieScore =
+        ((log.totalCalories / targets.calories) * 15).clamp(0.0, 15.0);
+    final alcoholScore = (log.totalAlcoholG * 2).clamp(0.0, 10.0);
+
+    return sugarScore + fatScore + caffeineScore + calorieScore + alcoholScore;
   }
 }

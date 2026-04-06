@@ -47,6 +47,7 @@ class NutrientRow extends StatelessWidget {
   final int sodiumMax;
   final int sugarMax;
   final int fiberMin;
+  final double liverLoad;
 
   const NutrientRow({
     super.key,
@@ -55,6 +56,7 @@ class NutrientRow extends StatelessWidget {
     required this.sodiumMax,
     required this.sugarMax,
     required this.fiberMin,
+    required this.liverLoad,
   });
 
   @override
@@ -76,6 +78,10 @@ class NutrientRow extends StatelessWidget {
             NutrientCircle(label: '식이섬유', current: log.totalFiberG,
                 target: fiberMin.toDouble(), unit: 'g',
                 color: Colors.teal, size: 72, isMin: true),
+            NutrientCircle(label: '간 무리 수치', current: liverLoad,
+                target: 100, unit: 'pt',
+                color: const Color(0xFF8E24AA), size: 72, isMin: false,
+                icon: Icons.healing_outlined),
           ],
         ),
       ),
@@ -92,6 +98,7 @@ class NutrientCircle extends StatelessWidget {
   final Color color;
   final double size;
   final bool isMin; // true=목표 이상(식이섬유), false=최대 이하
+  final IconData? icon;
 
   const NutrientCircle({
     super.key,
@@ -102,6 +109,7 @@ class NutrientCircle extends StatelessWidget {
     required this.color,
     required this.size,
     required this.isMin,
+    this.icon,
   });
 
   @override
@@ -131,6 +139,11 @@ class NutrientCircle extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (icon != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 1),
+                      child: Icon(icon, size: 12, color: activeColor),
+                    ),
                   Text(
                     _displayValue(),
                     style: TextStyle(
@@ -162,6 +175,9 @@ class NutrientCircle extends StatelessWidget {
   String _displayValue() {
     if (current >= 1000 && unit == 'mg') {
       return '${(current / 1000).toStringAsFixed(1)}k';
+    }
+    if (unit == 'pt') {
+      return current.toStringAsFixed(0);
     }
     return current >= 10
         ? current.toStringAsFixed(0)

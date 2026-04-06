@@ -13,6 +13,7 @@ class FoodEntryModel {
   final double fiberG;
   final double sodiumMg;
   final double caffeineMg;
+  final double alcoholG;
   final DateTime loggedAt;
   final String mealType; // breakfast | lunch | dinner | snack
 
@@ -29,6 +30,7 @@ class FoodEntryModel {
     required this.fiberG,
     required this.sodiumMg,
     required this.caffeineMg,
+    required this.alcoholG,
     required this.loggedAt,
     required this.mealType,
   });
@@ -46,6 +48,7 @@ class FoodEntryModel {
       'fiber_g': fiberG,
       'sodium_mg': sodiumMg,
       'caffeine_mg': caffeineMg,
+      'alcohol_g': alcoholG,
       'logged_at': Timestamp.fromDate(loggedAt),
       'meal_type': mealType,
     };
@@ -68,6 +71,7 @@ class FoodEntryModel {
       fiberG: (d['fiber_g'] ?? 0.0).toDouble(),
       sodiumMg: (d['sodium_mg'] ?? 0.0).toDouble(),
       caffeineMg: (d['caffeine_mg'] ?? 0.0).toDouble(),
+      alcoholG: (d['alcohol_g'] ?? 0.0).toDouble(),
       loggedAt: (d['logged_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
       mealType: d['meal_type'] ?? 'snack',
     );

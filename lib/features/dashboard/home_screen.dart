@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
 import 'package:nutrient_tracker/features/dashboard/widgets/food_log_section.dart';
+import 'package:nutrient_tracker/features/dashboard/widgets/manual_food_entry_dialog.dart';
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/services/nutrition_calculator.dart';
 import 'package:nutrient_tracker/services/nutrition_service.dart';
@@ -42,12 +44,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (p == null) return NutritionTargets.defaultTargets;
     return NutritionTargets(
       calories: p.dailyCalorieTarget,
-      proteinG: p.dailyProteinTarget,
+      proteinG: NutritionCalculator.recommendedProteinTarget(
+        weightKg: p.weightKg,
+        goal: p.goal,
+        hasKidneyDisease: p.hasKidneyDisease,
+        hasLiverDisease: p.hasLiverDisease,
+      ),
       carbsG: p.dailyCarbsTarget,
       fatG: p.dailyFatTarget,
       sodiumMg: p.dailySodiumTarget,
       caffeineMax: p.goal == HealthGoal.medical ? 200 : 400,
-      sugarMax: p.goal == HealthGoal.diet ? 25 : 50,
+      sugarMax: 100,
       fiberMin: p.gender == Gender.male ? 38 : 25,
     );
   }
@@ -88,10 +95,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/add-food'),
-        icon: const Icon(Icons.add),
-        label: const Text('음식 추가'),
+      floatingActionButton: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'manual-entry-fab',
+            onPressed: uid.isEmpty
+                ? null
+                : () => showManualFoodEntryDialog(
+                      context: context,
+                      uid: uid,
+                      date: _todayDate,
+                      nutritionService: _nutritionService,
+                    ),
+            backgroundColor: AppColors.secondary,
+            icon: const Icon(Icons.edit_note),
+            label: const Text('직접 입력'),
+          ),
+          const SizedBox(width: 12),
+          FloatingActionButton.extended(
+            heroTag: 'search-food-fab',
+            onPressed: () => context.push('/add-food'),
+            icon: const Icon(Icons.add),
+            label: const Text('음식 추가'),
+          ),
+        ],
       ),
     );
   }
@@ -114,6 +142,11 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final liverLoad = NutritionCalculator.estimateLiverLoad(
+      log: log,
+      targets: targets,
+    );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
       child: Column(
@@ -138,7 +171,7 @@ class _HomeContent extends StatelessWidget {
           const _Label('건강 지표'),
           NutrientRow(log: log, caffeineMax: targets.caffeineMax,
               sodiumMax: targets.sodiumMg, sugarMax: targets.sugarMax,
-              fiberMin: targets.fiberMin),
+              fiberMin: targets.fiberMin, liverLoad: liverLoad),
           const SizedBox(height: 16),
 
           // 오늘의 식단 로그

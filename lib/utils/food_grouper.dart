@@ -15,16 +15,13 @@ class FoodGrouper {
     return groups.values.map(_averageGroup).toList();
   }
 
-  /// "Bread, Italian" / "Bread, rye" → "bread"  (첫 단어, 소문자)
-  /// 한글: "닭가슴살 구이" → "닭가슴살"  (공백·특수문자 전 첫 토큰)
+  /// 이름 전체를 정규화해서 같은 음식명끼리만 평균화한다.
+  /// 예: "김치 찌개", "김치찌개" -> "김치찌개"
   static String _normalizeKey(String name) {
     return name
         .toLowerCase()
         .replaceAll(RegExp(r'[,\(\)\[\]/]'), ' ')
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .take(1)
-        .join(' ');
+        .replaceAll(RegExp(r'\s+'), '');
   }
 
   static FoodModel _averageGroup(List<FoodModel> group) {
@@ -42,6 +39,9 @@ class FoodGrouper {
       id: group.first.id,
       name: name,
       source: group.first.source,
+      nutritionBasisLabel: '100g',
+      packageAmount: null,
+      packageUnit: null,
       variantCount: group.length,
       per100g: FoodNutrition(
         calories:   avg((f) => f.per100g.calories),

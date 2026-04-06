@@ -26,6 +26,31 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final passwordConfirm = _passwordConfirmController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || passwordConfirm.isEmpty) {
+      setState(() {
+        _errorMessage = '이메일과 비밀번호를 모두 입력해주세요';
+      });
+      return;
+    }
+
+    if (!email.contains('@')) {
+      setState(() {
+        _errorMessage = '올바른 이메일 형식으로 입력해주세요';
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        _errorMessage = '비밀번호는 6자 이상이어야 합니다';
+      });
+      return;
+    }
+
     if (_passwordController.text != _passwordConfirmController.text) {
       setState(() {
         _errorMessage = '비밀번호가 일치하지 않습니다';
@@ -40,17 +65,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final authService = AuthService();
-      await authService.signUpWithEmail(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
+      await authService.signUpWithEmail(email, password);
 
       if (mounted) {
         context.go('/profile-setup');
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       if (mounted) {
