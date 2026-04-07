@@ -174,4 +174,51 @@ class NutritionCalculator {
             diseaseScore)
         .clamp(0.0, 100.0);
   }
+
+  static double estimateKidneyLoad({
+    required DailyLogModel log,
+    required NutritionTargets targets,
+    List<String> medications = const [],
+    bool hasKidneyDisease = false,
+    bool hasLiverDisease = false,
+  }) {
+    final sodiumScore =
+        ((log.totalSodiumMg / targets.sodiumMg) * 30).clamp(0.0, 30.0);
+    final proteinOverRatio =
+        ((log.totalProteinG - targets.proteinG) / targets.proteinG).clamp(0.0, 1.0);
+    final proteinScore = (proteinOverRatio * 30).clamp(0.0, 30.0);
+    final caffeineScore =
+        ((log.totalCaffeineMg / targets.caffeineMax) * 8).clamp(0.0, 8.0);
+    final alcoholScore = (log.totalAlcoholG * 0.5).clamp(0.0, 6.0);
+
+    final riskProfiles = MedicineService.getRiskProfiles(medications);
+    final medicationBaseScore = riskProfiles.fold<double>(
+      0,
+      (sum, profile) => sum + profile.kidneyWeight,
+    ).clamp(0.0, 24.0);
+    final medicationProteinScore = riskProfiles
+        .where((profile) => profile.sensitiveToProtein)
+        .fold<double>(0, (sum, _) => sum + proteinScore * 0.35)
+        .clamp(0.0, 12.0);
+    final medicationAlcoholScore = riskProfiles
+        .where((profile) => profile.sensitiveToAlcohol)
+        .fold<double>(0, (sum, _) => sum + (log.totalAlcoholG / 6))
+        .clamp(0.0, 6.0);
+    final medicationCaffeineScore = riskProfiles
+        .where((profile) => profile.sensitiveToCaffeine)
+        .fold<double>(0, (sum, _) => sum + (log.totalCaffeineMg / 200))
+        .clamp(0.0, 4.0);
+    final diseaseScore = (hasKidneyDisease ? 10.0 : 0.0) + (hasLiverDisease ? 2.0 : 0.0);
+
+    return (sodiumScore +
+            proteinScore +
+            caffeineScore +
+            alcoholScore +
+            medicationBaseScore +
+            medicationProteinScore +
+            medicationAlcoholScore +
+            medicationCaffeineScore +
+            diseaseScore)
+        .clamp(0.0, 100.0);
+  }
 }

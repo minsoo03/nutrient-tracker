@@ -121,7 +121,7 @@ class PortionHelper {
       PortionOption('1접시 (100g)', 100),
       PortionOption('1접시 (150g)', 150),
     ],
-    '찌개|전골|국밥|해장국|미역국|곰탕|설렁탕|갈비탕|삼계탕|도가니탕|육개장|순두부|스프|soup|stew': [
+    '찌개|전골|국밥|해장국|미역국|곰탕|설렁탕|갈비탕|삼계탕|도가니탕|육개장|순두부|마라탕|훠궈|스프|soup|stew': [
       PortionOption('반 그릇 (200g)', 200),
       PortionOption('1인분 (300g)', 300),
       PortionOption('큰 그릇 (500g)', 500),
@@ -256,6 +256,8 @@ class PortionHelper {
     '갈비탕',
     '삼계탕',
     '도가니탕',
+    '마라탕',
+    '훠궈',
   ];
 
   static const _alcoholKeywords = [

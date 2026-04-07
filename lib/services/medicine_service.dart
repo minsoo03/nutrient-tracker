@@ -34,6 +34,16 @@ class MedicationRiskProfile {
 }
 
 class MedicineService {
+  static const _nutrientThresholds = <String, double>{
+    'sodiumMg': 2300,
+    'caffeineMg': 400,
+    'proteinG': 80,
+    'fat': 65,
+    'alcoholG': 14,
+    'potassiumMg': 2000,
+    'vitaminK': 120,
+  };
+
   /// 약물 카테고리 → 영양소 주의사항 매핑
   static const _warnings = <String, List<MedicineWarning>>{
     '항응고제': [
@@ -181,7 +191,9 @@ class MedicineService {
     required double value,
     required List<MedicineWarning> warnings,
   }) {
-    return warnings.any((w) => w.nutrient == nutrient);
+    final threshold = _nutrientThresholds[nutrient];
+    if (threshold == null) return false;
+    return warnings.any((w) => w.nutrient == nutrient) && value >= threshold;
   }
 
   /// 모든 약물 카테고리 목록 (UI 선택용)

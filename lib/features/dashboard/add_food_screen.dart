@@ -9,8 +9,15 @@ import 'package:nutrient_tracker/services/nutrition_service.dart';
 import 'package:nutrient_tracker/utils/food_grouper.dart';
 import 'package:nutrient_tracker/utils/portion_helper.dart';
 
+enum AddFoodMode { food, drink }
+
 class AddFoodScreen extends StatefulWidget {
-  const AddFoodScreen({super.key});
+  final AddFoodMode mode;
+
+  const AddFoodScreen({
+    super.key,
+    this.mode = AddFoodMode.food,
+  });
 
   @override
   State<AddFoodScreen> createState() => _AddFoodScreenState();
@@ -46,7 +53,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     setState(() { _loading = true; _results = []; _status = ''; });
 
     final raw = await _searchService.searchFoods(query);
-    final results = FoodGrouper.groupAndAverage(raw);
+    final filtered = raw.where(_matchesMode).toList();
+    final results = FoodGrouper.groupAndAverage(filtered);
     if (!mounted) return;
 
     setState(() {
@@ -56,6 +64,20 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
           ? '검색 결과가 없습니다.\n한글은 식품명 전체 또는 띄어쓰기 없이 입력해보세요.'
           : '';
     });
+  }
+
+  bool _matchesMode(FoodModel food) {
+    final profile = PortionHelper.inputProfileFor(food.name);
+    return switch (widget.mode) {
+      AddFoodMode.food =>
+        profile.category == FoodUiCategory.generalFood ||
+            profile.category == FoodUiCategory.koreanMeal,
+      AddFoodMode.drink =>
+        profile.category == FoodUiCategory.beverage ||
+            profile.category == FoodUiCategory.caffeinatedDrink ||
+            profile.category == FoodUiCategory.alcoholicDrink ||
+            profile.category == FoodUiCategory.proteinSupplement,
+    };
   }
 
   Future<void> _addFood(FoodModel food) async {
@@ -154,14 +176,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('음식 추가'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(widget.mode == AddFoodMode.food ? '음식 추가' : '음료/보충제 추가'),
+        centerTitle: true,
+      ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: SearchBar(
               controller: _searchCtrl,
-              hintText: '음식명 검색 (한글·영문 가능)',
+              hintText: widget.mode == AddFoodMode.food
+                  ? '음식명 검색 (한글·영문 가능)'
+                  : '음료·보충제 검색 (예: 콜라, 시리얼, 프로틴)',
               leading: const Icon(Icons.search),
               trailing: [
                 if (_searchCtrl.text.isNotEmpty)
@@ -195,10 +222,16 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                   children: [
                     Icon(Icons.search, size: 48, color: Colors.grey[300]),
                     const SizedBox(height: 12),
-                    Text('음식명을 검색해보세요',
+                    Text(
+                        widget.mode == AddFoodMode.food
+                            ? '음식명을 검색해보세요'
+                            : '음료나 보충제를 검색해보세요',
                         style: TextStyle(color: Colors.grey[400])),
                     const SizedBox(height: 4),
-                    Text('예) 닭가슴살, chicken breast, 삼겹살',
+                    Text(
+                        widget.mode == AddFoodMode.food
+                            ? '예) 닭가슴살, chicken breast, 삼겹살'
+                            : '예) 콜라, 에너지드링크, 프로틴 쉐이크',
                         style: TextStyle(fontSize: 12, color: Colors.grey[400])),
                   ],
                 ),

@@ -8,7 +8,10 @@ class FoodGrouper {
 
     final groups = <String, List<FoodModel>>{};
     for (final food in foods) {
-      final key = _normalizeKey(food.name);
+      final normalizedName = _normalizeKey(food.name);
+      final key = food.source == 'standard'
+          ? 'standard:$normalizedName'
+          : normalizedName;
       groups.putIfAbsent(key, () => []).add(food);
     }
 

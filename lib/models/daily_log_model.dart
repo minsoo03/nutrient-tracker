@@ -11,6 +11,7 @@ class DailyLogModel {
   final double totalSodiumMg;
   final double totalCaffeineMg;
   final double totalAlcoholG;
+  final double totalExerciseCalories;
   final double totalWaterMl;
   final DateTime updatedAt;
 
@@ -25,6 +26,7 @@ class DailyLogModel {
     required this.totalSodiumMg,
     required this.totalCaffeineMg,
     required this.totalAlcoholG,
+    required this.totalExerciseCalories,
     required this.totalWaterMl,
     required this.updatedAt,
   });
@@ -41,6 +43,7 @@ class DailyLogModel {
       totalSodiumMg: 0.0,
       totalCaffeineMg: 0.0,
       totalAlcoholG: 0.0,
+      totalExerciseCalories: 0.0,
       totalWaterMl: 0.0,
       updatedAt: DateTime.now(),
     );
@@ -61,6 +64,7 @@ class DailyLogModel {
       totalSodiumMg: (data['totalSodiumMg'] ?? 0.0).toDouble(),
       totalCaffeineMg: (data['totalCaffeineMg'] ?? 0.0).toDouble(),
       totalAlcoholG: (data['totalAlcoholG'] ?? 0.0).toDouble(),
+      totalExerciseCalories: (data['totalExerciseCalories'] ?? 0.0).toDouble(),
       totalWaterMl: (data['totalWaterMl'] ?? 0.0).toDouble(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -78,6 +82,7 @@ class DailyLogModel {
       'totalSodiumMg': totalSodiumMg,
       'totalCaffeineMg': totalCaffeineMg,
       'totalAlcoholG': totalAlcoholG,
+      'totalExerciseCalories': totalExerciseCalories,
       'totalWaterMl': totalWaterMl,
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -94,6 +99,7 @@ class DailyLogModel {
     double? totalSodiumMg,
     double? totalCaffeineMg,
     double? totalAlcoholG,
+    double? totalExerciseCalories,
     double? totalWaterMl,
     DateTime? updatedAt,
   }) {
@@ -108,6 +114,7 @@ class DailyLogModel {
       totalSodiumMg: totalSodiumMg ?? this.totalSodiumMg,
       totalCaffeineMg: totalCaffeineMg ?? this.totalCaffeineMg,
       totalAlcoholG: totalAlcoholG ?? this.totalAlcoholG,
+      totalExerciseCalories: totalExerciseCalories ?? this.totalExerciseCalories,
       totalWaterMl: totalWaterMl ?? this.totalWaterMl,
       updatedAt: updatedAt ?? this.updatedAt,
     );

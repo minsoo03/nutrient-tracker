@@ -7,13 +7,22 @@ export 'nutrient_charts.dart'; // MacrosRow, NutrientRow, NutrientCircle 재expo
 class CaloriesCard extends StatelessWidget {
   final DailyLogModel log;
   final int target;
+  final bool showExercise;
 
-  const CaloriesCard({super.key, required this.log, required this.target});
+  const CaloriesCard({
+    super.key,
+    required this.log,
+    required this.target,
+    this.showExercise = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final progress = (log.totalCalories / target).clamp(0.0, 1.0);
-    final remaining = (target - log.totalCalories).round();
+    final displayedCalories = showExercise
+        ? (log.totalCalories - log.totalExerciseCalories).clamp(0.0, double.infinity)
+        : log.totalCalories;
+    final progress = (displayedCalories / target).clamp(0.0, 1.0);
+    final remaining = (target - displayedCalories).round();
     final isOver = remaining < 0;
 
     return Card(
@@ -38,7 +47,7 @@ class CaloriesCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      log.totalCalories.toStringAsFixed(0),
+                      displayedCalories.toStringAsFixed(0),
                       style: const TextStyle(
                           fontSize: 32, fontWeight: FontWeight.bold),
                     ),
@@ -57,14 +66,33 @@ class CaloriesCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _Stat(label: '목표', value: '$target kcal'),
                 _Stat(
-                  label: isOver ? '초과' : '남은 칼로리',
-                  value: '${remaining.abs()} kcal',
-                  color: isOver ? AppColors.error : AppColors.primary,
+                  label: showExercise ? '섭취 칼로리' : '목표',
+                  value: showExercise
+                      ? '${log.totalCalories.toStringAsFixed(0)} kcal'
+                      : '$target kcal',
+                ),
+                _Stat(
+                  label: showExercise
+                      ? '운동 소모'
+                      : (isOver ? '초과' : '남은 칼로리'),
+                  value: showExercise
+                      ? '${log.totalExerciseCalories.toStringAsFixed(0)} kcal'
+                      : '${remaining.abs()} kcal',
+                  color: showExercise
+                      ? AppColors.secondary
+                      : (isOver ? AppColors.error : AppColors.primary),
                 ),
               ],
             ),
+            if (showExercise) ...[
+              const SizedBox(height: 10),
+              _Stat(
+                  label: isOver ? '순칼로리 초과' : '순칼로리 남음',
+                  value: '${remaining.abs()} kcal',
+                  color: isOver ? AppColors.error : AppColors.primary,
+                ),
+            ],
           ],
         ),
       ),

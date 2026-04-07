@@ -248,7 +248,7 @@ class FoodSearchService {
         ['술', '소주', 'soju'],
         const FoodModel(
           id: 'standard_soju',
-          name: '소주 (표준값)',
+          name: '소주',
           source: 'standard',
           nutritionBasisLabel: '100ml',
           per100g: FoodNutrition(
@@ -268,7 +268,7 @@ class FoodSearchService {
         ['술', '맥주', 'beer', 'lager'],
         const FoodModel(
           id: 'standard_beer',
-          name: '맥주 (표준값)',
+          name: '맥주',
           source: 'standard',
           nutritionBasisLabel: '100ml',
           per100g: FoodNutrition(
@@ -288,7 +288,7 @@ class FoodSearchService {
         ['술', '와인', 'wine'],
         const FoodModel(
           id: 'standard_wine',
-          name: '와인 (표준값)',
+          name: '와인',
           source: 'standard',
           nutritionBasisLabel: '100ml',
           per100g: FoodNutrition(
@@ -308,7 +308,7 @@ class FoodSearchService {
         ['술', '막걸리', 'makgeolli', 'ricewine'],
         const FoodModel(
           id: 'standard_makgeolli',
-          name: '막걸리 (표준값)',
+          name: '막걸리',
           source: 'standard',
           nutritionBasisLabel: '100ml',
           per100g: FoodNutrition(
@@ -328,7 +328,7 @@ class FoodSearchService {
         ['술', '위스키', 'whiskey', 'whisky'],
         const FoodModel(
           id: 'standard_whiskey',
-          name: '위스키 (표준값)',
+          name: '위스키',
           source: 'standard',
           nutritionBasisLabel: '100ml',
           per100g: FoodNutrition(
@@ -348,7 +348,7 @@ class FoodSearchService {
         ['술', '하이볼', 'highball'],
         const FoodModel(
           id: 'standard_highball',
-          name: '하이볼 (표준값)',
+          name: '하이볼',
           source: 'standard',
           nutritionBasisLabel: '100ml',
           per100g: FoodNutrition(
@@ -380,7 +380,7 @@ class FoodSearchService {
 
   static const _standardProteinShake = FoodModel(
     id: 'standard_protein_shake',
-    name: '프로틴 쉐이크 (표준값)',
+    name: '프로틴 쉐이크',
     source: 'standard',
     nutritionBasisLabel: '100g',
     per100g: FoodNutrition(
