@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
+import 'package:nutrient_tracker/features/dashboard/widgets/exercise_summary_widget.dart';
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 
 export 'nutrient_charts.dart'; // MacrosRow, NutrientRow, NutrientCircle 재export
@@ -18,9 +19,11 @@ class CaloriesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayedCalories = showExercise
-        ? (log.totalCalories - log.totalExerciseCalories).clamp(0.0, double.infinity)
-        : log.totalCalories;
+    final netCalories = (log.totalCalories - log.totalExerciseCalories).clamp(
+      0.0,
+      double.infinity,
+    );
+    final displayedCalories = showExercise ? netCalories : log.totalCalories;
     final progress = (displayedCalories / target).clamp(0.0, 1.0);
     final remaining = (target - displayedCalories).round();
     final isOver = remaining < 0;
@@ -47,6 +50,15 @@ class CaloriesCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
+                      showExercise ? '순칼로리' : '섭취 칼로리',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
                       displayedCalories.toStringAsFixed(0),
                       style: const TextStyle(
                           fontSize: 32, fontWeight: FontWeight.bold),
@@ -63,35 +75,31 @@ class CaloriesCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _Stat(
-                  label: showExercise ? '섭취 칼로리' : '목표',
-                  value: showExercise
-                      ? '${log.totalCalories.toStringAsFixed(0)} kcal'
-                      : '$target kcal',
-                ),
-                _Stat(
-                  label: showExercise
-                      ? '운동 소모'
-                      : (isOver ? '초과' : '남은 칼로리'),
-                  value: showExercise
-                      ? '${log.totalExerciseCalories.toStringAsFixed(0)} kcal'
-                      : '${remaining.abs()} kcal',
-                  color: showExercise
-                      ? AppColors.secondary
-                      : (isOver ? AppColors.error : AppColors.primary),
-                ),
-              ],
-            ),
             if (showExercise) ...[
+              ExerciseSummary(
+                consumedCalories: log.totalCalories,
+                burnedCalories: log.totalExerciseCalories,
+                netCalories: netCalories,
+                targetCalories: target.toDouble(),
+              ),
               const SizedBox(height: 10),
               _Stat(
-                  label: isOver ? '순칼로리 초과' : '순칼로리 남음',
-                  value: '${remaining.abs()} kcal',
-                  color: isOver ? AppColors.error : AppColors.primary,
-                ),
+                label: isOver ? '오늘 목표 초과' : '오늘 목표까지',
+                value: '${remaining.abs()} kcal',
+                color: isOver ? AppColors.error : AppColors.primary,
+              ),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _Stat(label: '목표', value: '$target kcal'),
+                  _Stat(
+                    label: isOver ? '초과' : '남은 칼로리',
+                    value: '${remaining.abs()} kcal',
+                    color: isOver ? AppColors.error : AppColors.primary,
+                  ),
+                ],
+              ),
             ],
           ],
         ),
@@ -111,8 +119,7 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
         const SizedBox(height: 2),
         Text(
           value,

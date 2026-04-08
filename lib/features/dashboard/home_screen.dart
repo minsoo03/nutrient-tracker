@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
+import 'package:nutrient_tracker/core/widgets/numeric_input_field.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
 import 'package:nutrient_tracker/features/dashboard/widgets/dashboard_daily_view.dart';
@@ -39,24 +40,93 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _userProfile = profile);
   }
 
+  bool get _shouldPromptWeightUpdate {
+    final profile = _userProfile;
+    if (profile == null) return false;
+    return DateTime.now().difference(profile.lastWeightUpdatedAt).inDays >= 7;
+  }
+
+  Future<void> _showWeightUpdateDialog() async {
+    final profile = _userProfile;
+    if (profile == null) return;
+    final controller = TextEditingController(
+      text: profile.weightKg.toStringAsFixed(
+        profile.weightKg % 1 == 0 ? 0 : 1,
+      ),
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('체중 업데이트'),
+        content: SizedBox(
+          width: 320,
+          child: NumericInputField(
+            controller: controller,
+            labelText: '현재 체중',
+            suffixText: 'kg',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    final weightKg = double.tryParse(controller.text.trim());
+    if (weightKg == null || weightKg <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('체중을 올바르게 입력해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final recalculated = NutritionCalculator.calculate(
+      age: profile.age,
+      gender: profile.gender,
+      heightCm: profile.heightCm,
+      weightKg: weightKg,
+      goal: profile.goal,
+      hasKidneyDisease: profile.hasKidneyDisease,
+      hasLiverDisease: profile.hasLiverDisease,
+    );
+
+    final updatedProfile = profile.copyWith(
+      weightKg: weightKg,
+      dailyCalorieTarget: recalculated.calories,
+      dailyProteinTarget: recalculated.proteinG,
+      dailyCarbsTarget: recalculated.carbsG,
+      dailyFatTarget: recalculated.fatG,
+      dailySodiumTarget: recalculated.sodiumMg,
+      lastWeightUpdatedAt: DateTime.now(),
+    );
+
+    await _auth.saveUserProfile(updatedProfile);
+    if (!mounted) return;
+    setState(() => _userProfile = updatedProfile);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('체중과 하루 권장치가 업데이트되었습니다.'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
   NutritionTargets get _targets {
     final p = _userProfile;
     if (p == null) return NutritionTargets.defaultTargets;
-    return NutritionTargets(
-      calories: p.dailyCalorieTarget,
-      proteinG: NutritionCalculator.recommendedProteinTarget(
-        weightKg: p.weightKg,
-        goal: p.goal,
-        hasKidneyDisease: p.hasKidneyDisease,
-        hasLiverDisease: p.hasLiverDisease,
-      ),
-      carbsG: p.dailyCarbsTarget,
-      fatG: p.dailyFatTarget,
-      sodiumMg: p.dailySodiumTarget,
-      caffeineMax: p.goal == HealthGoal.medical ? 200 : 400,
-      sugarMax: 100,
-      fiberMin: p.gender == Gender.male ? 38 : 25,
-    );
+    return NutritionCalculator.fromUserProfile(p);
   }
 
   bool get _supportsExercise {
@@ -110,6 +180,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   dateLabel: _dateLabel(DateTime.now()),
                   nutritionService: _nutritionService,
                   showExercise: _supportsExercise,
+                  showWeightUpdatePrompt: _shouldPromptWeightUpdate,
+                  currentWeightKg: _userProfile?.weightKg,
+                  lastWeightUpdatedAt: _userProfile?.lastWeightUpdatedAt,
+                  onUpdateWeight: _showWeightUpdateDialog,
                 );
               },
             ),

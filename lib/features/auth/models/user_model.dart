@@ -20,6 +20,7 @@ class UserModel {
   final bool hasKidneyDisease;
   final bool hasLiverDisease;
   final List<String> medications;
+  final DateTime lastWeightUpdatedAt;
   final DateTime createdAt;
 
   UserModel({
@@ -38,6 +39,7 @@ class UserModel {
     required this.hasKidneyDisease,
     required this.hasLiverDisease,
     required this.medications,
+    required this.lastWeightUpdatedAt,
     required this.createdAt,
   });
 
@@ -45,23 +47,30 @@ class UserModel {
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     final d = doc.data()!;
+    final createdAt =
+        (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final genderName = d['gender'] as String? ?? Gender.other.name;
+    final goalName = d['goal'] as String? ?? HealthGoal.health.name;
     return UserModel(
       uid: doc.id,
-      name: d['name'] as String,
-      age: d['age'] as int,
-      gender: Gender.values.byName(d['gender'] as String),
-      heightCm: (d['heightCm'] as num).toDouble(),
-      weightKg: (d['weightKg'] as num).toDouble(),
-      goal: HealthGoal.values.byName(d['goal'] as String),
-      dailyCalorieTarget: (d['dailyCalorieTarget'] ?? 2000) as int,
-      dailyProteinTarget: (d['dailyProteinTarget'] ?? 60) as int,
-      dailyCarbsTarget: (d['dailyCarbsTarget'] ?? 250) as int,
-      dailyFatTarget: (d['dailyFatTarget'] ?? 65) as int,
-      dailySodiumTarget: (d['dailySodiumTarget'] ?? 2300) as int,
-      hasKidneyDisease: d['hasKidneyDisease'] as bool,
-      hasLiverDisease: d['hasLiverDisease'] as bool,
-      medications: List<String>.from(d['medications'] as List),
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
+      name: d['name'] as String? ?? '',
+      age: (d['age'] as num?)?.toInt() ?? 0,
+      gender: Gender.values.byName(genderName),
+      heightCm: (d['heightCm'] as num?)?.toDouble() ?? 0,
+      weightKg: (d['weightKg'] as num?)?.toDouble() ?? 0,
+      goal: HealthGoal.values.byName(goalName),
+      dailyCalorieTarget: (d['dailyCalorieTarget'] as num?)?.toInt() ?? 2000,
+      dailyProteinTarget: (d['dailyProteinTarget'] as num?)?.toInt() ?? 60,
+      dailyCarbsTarget: (d['dailyCarbsTarget'] as num?)?.toInt() ?? 250,
+      dailyFatTarget: (d['dailyFatTarget'] as num?)?.toInt() ?? 65,
+      dailySodiumTarget: (d['dailySodiumTarget'] as num?)?.toInt() ?? 2300,
+      hasKidneyDisease: d['hasKidneyDisease'] as bool? ?? false,
+      hasLiverDisease: d['hasLiverDisease'] as bool? ?? false,
+      medications: List<String>.from(d['medications'] ?? const []),
+      lastWeightUpdatedAt:
+          (d['lastWeightUpdatedAt'] as Timestamp?)?.toDate() ??
+          createdAt,
+      createdAt: createdAt,
     );
   }
 
@@ -82,6 +91,7 @@ class UserModel {
       'hasKidneyDisease': hasKidneyDisease,
       'hasLiverDisease': hasLiverDisease,
       'medications': medications,
+      'lastWeightUpdatedAt': Timestamp.fromDate(lastWeightUpdatedAt),
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -92,7 +102,7 @@ class UserModel {
     int? dailyCalorieTarget, int? dailyProteinTarget,
     int? dailyCarbsTarget, int? dailyFatTarget, int? dailySodiumTarget,
     bool? hasKidneyDisease, bool? hasLiverDisease,
-    List<String>? medications, DateTime? createdAt,
+    List<String>? medications, DateTime? lastWeightUpdatedAt, DateTime? createdAt,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -110,6 +120,7 @@ class UserModel {
       hasKidneyDisease: hasKidneyDisease ?? this.hasKidneyDisease,
       hasLiverDisease: hasLiverDisease ?? this.hasLiverDisease,
       medications: medications ?? this.medications,
+      lastWeightUpdatedAt: lastWeightUpdatedAt ?? this.lastWeightUpdatedAt,
       createdAt: createdAt ?? this.createdAt,
     );
   }

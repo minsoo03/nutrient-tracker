@@ -47,6 +47,21 @@ class NutritionService {
     });
   }
 
+  Future<void> saveDailyMedications(
+    String uid,
+    String date,
+    List<String> medications,
+  ) async {
+    final current = await getDailyLog(uid, date);
+    await saveDailyLog(
+      uid,
+      current.copyWith(
+        dailyMedications: medications,
+        updatedAt: DateTime.now(),
+      ),
+    );
+  }
+
   /// Add a food entry and recalculate daily totals.
   Future<void> addFoodEntry(
     String uid,
@@ -123,6 +138,7 @@ class NutritionService {
   Future<void> _recalculateDailyTotals(String uid, String date) async {
     final snap = await _entriesCol(uid, date).get();
     final exerciseSnap = await _exercisesCol(uid, date).get();
+    final currentLog = await getDailyLog(uid, date);
     double cal = 0, carbs = 0, protein = 0, fat = 0;
     double sugar = 0, fiber = 0, sodium = 0, caffeine = 0, alcohol = 0;
     double exerciseCalories = 0;
@@ -158,6 +174,7 @@ class NutritionService {
       totalAlcoholG: alcohol,
       totalExerciseCalories: exerciseCalories,
       totalWaterMl: 0,
+      dailyMedications: currentLog.dailyMedications,
       updatedAt: DateTime.now(),
     );
     await saveDailyLog(uid, log);

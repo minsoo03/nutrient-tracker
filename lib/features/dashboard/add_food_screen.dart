@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
+import 'package:nutrient_tracker/features/dashboard/widgets/add_food_body.dart';
 import 'package:nutrient_tracker/features/dashboard/widgets/food_result_widgets.dart';
 import 'package:nutrient_tracker/models/food_entry_model.dart';
 import 'package:nutrient_tracker/models/food_model.dart';
@@ -84,31 +85,23 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     final dialogResult = await showAmountDialog(context, food);
     if (dialogResult == null || !mounted) return;
 
-    final (
-      amountG,
-      mealType,
-      extraNutrition,
-      companionLabel,
-      caffeineOverrideMg,
-      sugarOverrideG,
-      isZeroDrink,
-    ) =
-        dialogResult;
+    final (amountG, mealType, extraNutrition, companionLabel,
+        caffeineOverrideMg, sugarOverrideG, isZeroDrink) = dialogResult;
+
     final uid = _authService.currentUser?.uid ?? '';
     if (uid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 정보가 없어 저장할 수 없습니다. 다시 로그인해주세요.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('로그인 정보가 없어 저장할 수 없습니다. 다시 로그인해주세요.'),
+        backgroundColor: Colors.red,
+      ));
       return;
     }
 
     final scaledBase = food.per100g.scaled(amountG);
     final adjustedSugarG = sugarOverrideG ?? scaledBase.sugarG;
     final sugarDelta = adjustedSugarG - scaledBase.sugarG;
-    final adjustedCarbsG = (scaledBase.carbsG + sugarDelta).clamp(0.0, double.infinity);
+    final adjustedCarbsG =
+        (scaledBase.carbsG + sugarDelta).clamp(0.0, double.infinity);
     final adjustedCalories =
         (scaledBase.calories + sugarDelta * 4).clamp(0.0, double.infinity);
     final finalCaffeineMg =
@@ -125,20 +118,33 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       alcoholG: scaledBase.alcoholG + extraNutrition.alcoholG,
     );
 
-    final foodNameParts = <String>[];
-    if (isZeroDrink) {
-      foodNameParts.add('제로');
-    }
+    final inputProfile = PortionHelper.inputProfileFor(food.name);
+    final usesMl = inputProfile.usesMilliliters;
+    final usesPiece = PortionHelper.usesPieceCount(food.name);
+    final amountValue =
+        usesPiece ? amountG / PortionHelper.gramsPerPiece(food.name) : amountG;
+    final amountUnit =
+        usesPiece ? 'piece' : (usesMl ? 'ml' : 'g');
+    final entryType = switch (inputProfile.category) {
+      FoodUiCategory.alcoholicDrink => 'alcohol',
+      FoodUiCategory.proteinSupplement => 'supplement',
+      FoodUiCategory.beverage || FoodUiCategory.caffeinatedDrink => 'drink',
+      _ => 'food',
+    };
+    final parts = <String>[
+      if (isZeroDrink) '제로',
+    ];
     if (companionLabel != null) {
-      foodNameParts.add(companionLabel);
+      parts.add(companionLabel);
     }
-    final foodNameSuffix = foodNameParts.join(' · ');
+    final suffix = parts.join(' · ');
     final entry = FoodEntryModel(
       foodId: food.id,
-      foodName: foodNameSuffix.isEmpty
-          ? food.name
-          : '${food.name} · $foodNameSuffix',
+      foodName: suffix.isEmpty ? food.name : '${food.name} · $suffix',
       amountG: amountG,
+      amountValue: amountValue,
+      amountUnit: amountUnit,
+      entryType: entryType,
       calories: scaled.calories,
       carbsG: scaled.carbsG,
       proteinG: scaled.proteinG,
@@ -155,14 +161,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     try {
       await _nutritionService.addFoodEntry(uid, _todayDate, entry);
       if (!mounted) return;
-      final amountUnit = PortionHelper.usesMilliliters(food.name) ? 'ml' : 'g';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${food.name} 추가됨 (${amountG.toStringAsFixed(0)}$amountUnit)'),
-          backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${food.name} 추가됨 (${entry.displayAmountText})'),
+        backgroundColor: AppColors.primary,
+        duration: const Duration(seconds: 2),
+      ));
       Navigator.pop(context);
     } catch (e) {
       debugPrint('❌ 음식 추가 실패: $e');
@@ -180,75 +183,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         title: Text(widget.mode == AddFoodMode.food ? '음식 추가' : '음료/보충제 추가'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SearchBar(
-              controller: _searchCtrl,
-              hintText: widget.mode == AddFoodMode.food
-                  ? '음식명 검색 (한글·영문 가능)'
-                  : '음료·보충제 검색 (예: 콜라, 시리얼, 프로틴)',
-              leading: const Icon(Icons.search),
-              trailing: [
-                if (_searchCtrl.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      setState(() { _results = []; _status = ''; });
-                    },
-                  ),
-              ],
-              onSubmitted: _search,
-              onChanged: (v) => setState(() {}),
-            ),
-          ),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_status.isNotEmpty)
-            Expanded(
-              child: Center(
-                child: Text(_status,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[500])),
-              ),
-            )
-          else if (_results.isEmpty)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.search, size: 48, color: Colors.grey[300]),
-                    const SizedBox(height: 12),
-                    Text(
-                        widget.mode == AddFoodMode.food
-                            ? '음식명을 검색해보세요'
-                            : '음료나 보충제를 검색해보세요',
-                        style: TextStyle(color: Colors.grey[400])),
-                    const SizedBox(height: 4),
-                    Text(
-                        widget.mode == AddFoodMode.food
-                            ? '예) 닭가슴살, chicken breast, 삼겹살'
-                            : '예) 콜라, 에너지드링크, 프로틴 쉐이크',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[400])),
-                  ],
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: ListView.separated(
-                itemCount: _results.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
-                itemBuilder: (ctx, i) => FoodResultItem(
-                  food: _results[i],
-                  onTap: () => _addFood(_results[i]),
-                ),
-              ),
-            ),
-        ],
+      body: AddFoodBody(
+        searchCtrl: _searchCtrl,
+        mode: widget.mode,
+        loading: _loading,
+        status: _status,
+        results: _results,
+        onSubmitted: _search,
+        onChanged: (v) => setState(() {}),
+        onClear: () {
+          _searchCtrl.clear();
+          setState(() { _results = []; _status = ''; });
+        },
+        onFoodTap: _addFood,
       ),
     );
   }

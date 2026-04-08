@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
-import 'package:nutrient_tracker/core/widgets/numeric_input_field.dart';
+import 'package:nutrient_tracker/features/dashboard/widgets/manual_food_entry_form.dart';
 import 'package:nutrient_tracker/models/food_entry_model.dart';
 import 'package:nutrient_tracker/services/nutrition_service.dart';
 
@@ -78,12 +78,14 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
     }
 
     setState(() => _isLoading = true);
-
     try {
       final entry = FoodEntryModel(
         foodId: 'custom_${DateTime.now().millisecondsSinceEpoch}',
         foodName: name,
         amountG: amount,
+        amountValue: amount,
+        amountUnit: 'custom',
+        entryType: 'manual',
         calories: calories,
         carbsG: _parseDouble(_carbsCtrl),
         proteinG: _parseDouble(_proteinCtrl),
@@ -102,7 +104,7 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$name 추가됨'),
+          content: Text('$name 추가됨 (${entry.displayAmountText})'),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -113,9 +115,8 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
     }
   }
 
-  double _parseDouble(TextEditingController controller) {
-    return double.tryParse(controller.text.trim()) ?? 0.0;
-  }
+  double _parseDouble(TextEditingController controller) =>
+      double.tryParse(controller.text.trim()) ?? 0.0;
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -128,68 +129,20 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
     return AlertDialog(
       title: const Text('직접 입력'),
       content: SingleChildScrollView(
-        child: SizedBox(
-          width: 340,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _field(_nameCtrl, '음식명', TextInputType.text),
-              const SizedBox(height: 10),
-              _numericField(_amountCtrl, '섭취량', suffix: 'g/ml'),
-              const SizedBox(height: 10),
-              _numericField(_caloriesCtrl, '칼로리', suffix: 'kcal'),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _numericField(_carbsCtrl, '탄수화물', suffix: 'g')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _numericField(_proteinCtrl, '단백질', suffix: 'g')),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _numericField(_fatCtrl, '지방', suffix: 'g')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _numericField(_sugarCtrl, '당류', suffix: 'g')),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _numericField(_fiberCtrl, '식이섬유', suffix: 'g')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _numericField(_sodiumCtrl, '나트륨', suffix: 'mg')),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _numericField(_caffeineCtrl, '카페인', suffix: 'mg')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _numericField(_alcoholCtrl, '알코올', suffix: 'g')),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '식사 구분',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                children: [
-                  _mealChip('breakfast', '아침'),
-                  _mealChip('lunch', '점심'),
-                  _mealChip('dinner', '저녁'),
-                  _mealChip('snack', '간식'),
-                ],
-              ),
-            ],
-          ),
+        child: ManualFoodEntryForm(
+          nameCtrl: _nameCtrl,
+          amountCtrl: _amountCtrl,
+          caloriesCtrl: _caloriesCtrl,
+          carbsCtrl: _carbsCtrl,
+          proteinCtrl: _proteinCtrl,
+          fatCtrl: _fatCtrl,
+          sugarCtrl: _sugarCtrl,
+          fiberCtrl: _fiberCtrl,
+          sodiumCtrl: _sodiumCtrl,
+          caffeineCtrl: _caffeineCtrl,
+          alcoholCtrl: _alcoholCtrl,
+          mealType: _mealType,
+          onMealTypeChanged: (v) => setState(() => _mealType = v),
         ),
       ),
       actions: [
@@ -208,47 +161,6 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
               : const Text('추가'),
         ),
       ],
-    );
-  }
-
-  Widget _field(
-    TextEditingController controller,
-    String label,
-    TextInputType keyboardType, {
-    String? suffix,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        suffixText: suffix,
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
-    );
-  }
-
-  Widget _numericField(
-    TextEditingController controller,
-    String label, {
-    String? suffix,
-  }) {
-    return NumericInputField(
-      controller: controller,
-      labelText: label,
-      suffixText: suffix,
-    );
-  }
-
-  Widget _mealChip(String value, String label) {
-    return ChoiceChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      selected: _mealType == value,
-      onSelected: (selected) {
-        if (!selected) return;
-        setState(() => _mealType = value);
-      },
     );
   }
 }

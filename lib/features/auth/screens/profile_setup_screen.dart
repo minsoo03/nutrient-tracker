@@ -97,6 +97,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         hasKidneyDisease: _hasKidney,
         hasLiverDisease: _hasLiver,
         medications: _medications,
+        lastWeightUpdatedAt: DateTime.now(),
         createdAt: DateTime.now(),
       ));
 

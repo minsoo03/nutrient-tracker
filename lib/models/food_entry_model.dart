@@ -5,6 +5,9 @@ class FoodEntryModel {
   final String foodId;
   final String foodName;
   final double amountG;
+  final double amountValue;
+  final String amountUnit;
+  final String entryType;
   final double calories;
   final double carbsG;
   final double proteinG;
@@ -22,6 +25,9 @@ class FoodEntryModel {
     required this.foodId,
     required this.foodName,
     required this.amountG,
+    required this.amountValue,
+    required this.amountUnit,
+    required this.entryType,
     required this.calories,
     required this.carbsG,
     required this.proteinG,
@@ -40,6 +46,9 @@ class FoodEntryModel {
       'food_id': foodId,
       'food_name': foodName,
       'amount_g': amountG,
+      'amount_value': amountValue,
+      'amount_unit': amountUnit,
+      'entry_type': entryType,
       'calories': calories,
       'carbs_g': carbsG,
       'protein_g': proteinG,
@@ -63,6 +72,9 @@ class FoodEntryModel {
       foodId: d['food_id'] ?? '',
       foodName: d['food_name'] ?? '',
       amountG: (d['amount_g'] ?? 0.0).toDouble(),
+      amountValue: (d['amount_value'] ?? d['amount_g'] ?? 0.0).toDouble(),
+      amountUnit: d['amount_unit'] ?? 'g',
+      entryType: d['entry_type'] ?? 'food',
       calories: (d['calories'] ?? 0.0).toDouble(),
       carbsG: (d['carbs_g'] ?? 0.0).toDouble(),
       proteinG: (d['protein_g'] ?? 0.0).toDouble(),
@@ -75,5 +87,15 @@ class FoodEntryModel {
       loggedAt: (d['logged_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
       mealType: d['meal_type'] ?? 'snack',
     );
+  }
+
+  String get displayAmountText {
+    final value = amountValue % 1 == 0 ? amountValue.toStringAsFixed(0) : amountValue.toStringAsFixed(1);
+    return switch (amountUnit) {
+      'piece' => '$value개',
+      'ml' => '${value}ml',
+      'custom' => value,
+      _ => '${value}g',
+    };
   }
 }

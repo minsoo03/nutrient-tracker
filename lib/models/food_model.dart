@@ -1,55 +1,6 @@
-class FoodNutrition {
-  final double calories;
-  final double carbsG;
-  final double proteinG;
-  final double fatG;
-  final double sugarG;
-  final double fiberG;
-  final double sodiumMg;
-  final double caffeineMg;
-  final double alcoholG;
+import 'package:nutrient_tracker/models/food_nutrition.dart';
 
-  const FoodNutrition({
-    required this.calories,
-    required this.carbsG,
-    required this.proteinG,
-    required this.fatG,
-    required this.sugarG,
-    required this.fiberG,
-    required this.sodiumMg,
-    required this.caffeineMg,
-    this.alcoholG = 0,
-  });
-
-  FoodNutrition scaled(double grams) {
-    final ratio = grams / 100.0;
-    return FoodNutrition(
-      calories: calories * ratio,
-      carbsG: carbsG * ratio,
-      proteinG: proteinG * ratio,
-      fatG: fatG * ratio,
-      sugarG: sugarG * ratio,
-      fiberG: fiberG * ratio,
-      sodiumMg: sodiumMg * ratio,
-      caffeineMg: caffeineMg * ratio,
-      alcoholG: alcoholG * ratio,
-    );
-  }
-
-  FoodNutrition plus(FoodNutrition other) {
-    return FoodNutrition(
-      calories: calories + other.calories,
-      carbsG: carbsG + other.carbsG,
-      proteinG: proteinG + other.proteinG,
-      fatG: fatG + other.fatG,
-      sugarG: sugarG + other.sugarG,
-      fiberG: fiberG + other.fiberG,
-      sodiumMg: sodiumMg + other.sodiumMg,
-      caffeineMg: caffeineMg + other.caffeineMg,
-      alcoholG: alcoholG + other.alcoholG,
-    );
-  }
-}
+export 'package:nutrient_tracker/models/food_nutrition.dart' show FoodNutrition;
 
 class FoodModel {
   final String id;
@@ -88,8 +39,6 @@ class FoodModel {
   }
 
   /// 식품안전처 I2790 응답 파싱
-  /// 주요 필드: FOOD_NM_KR, ENERC(kcal), PROT(g), FAT(g), CHOC(g),
-  ///           SUGAR(g), FIBT(g), NA(mg), CAFFN(mg)
   factory FoodModel.fromMfds(Map<String, dynamic> json) {
     double parseDouble(String key) =>
         double.tryParse(json[key]?.toString() ?? '0') ?? 0.0;
@@ -113,8 +62,7 @@ class FoodModel {
     );
   }
 
-  /// 공공데이터포털 (data.go.kr) 음식·원재료·가공식품·건강기능식품 통합 파서
-  /// 각 API별 필드명이 조금씩 다르므로 fallback 키 목록으로 처리
+  /// 공공데이터포털 (data.go.kr) 통합 파서
   factory FoodModel.fromDataGovKr(Map<String, dynamic> json, String source) {
     double pickValue(List<String> keys) {
       for (final k in keys) {
@@ -156,8 +104,7 @@ class FoodModel {
         sugarG: pickValue(['sugar', 'amtNum7']) * normalizationFactor,
         fiberG: pickValue(['fibtg', 'dietaryFiber', 'amtNum8']) * normalizationFactor,
         sodiumMg: pickValue(['nat', 'sodium', 'amtNum13']) * normalizationFactor,
-        caffeineMg: (caffeineValue > 0 ? caffeineValue : fallbackCaffeine) *
-            normalizationFactor,
+        caffeineMg: (caffeineValue > 0 ? caffeineValue : fallbackCaffeine) * normalizationFactor,
         alcoholG: pickValue(['alcohol', 'alc', 'alcoholG']) * normalizationFactor,
       ),
     );
@@ -198,10 +145,8 @@ class FoodModel {
     if (raw == null) return null;
     final text = raw.trim().toLowerCase();
     if (text.isEmpty) return null;
-
     final match = RegExp(r'(\d+(?:\.\d+)?)\s*(g|ml)').firstMatch(text);
     if (match == null) return null;
-
     final amount = double.tryParse(match.group(1)!);
     final unit = match.group(2);
     if (amount == null || unit == null) return null;
@@ -210,23 +155,15 @@ class FoodModel {
 
   static double _fallbackCaffeinePer100(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('에너지드링크') ||
-        lower.contains('energy drink') ||
-        lower.contains('energydrink') ||
-        lower.contains('monster') ||
-        lower.contains('red bull') ||
-        lower.contains('redbull') ||
+    if (lower.contains('에너지드링크') || lower.contains('energy drink') ||
+        lower.contains('energydrink') || lower.contains('monster') ||
+        lower.contains('red bull') || lower.contains('redbull') ||
         lower.contains('핫식스')) {
-      // Common energy drinks are roughly 30mg caffeine per 100ml.
       return 30.0;
     }
-    if (lower.contains('콜라') ||
-        lower.contains('cola') ||
-        lower.contains('coke') ||
-        lower.contains('코카콜라') ||
-        lower.contains('펩시') ||
-        lower.contains('pepsi')) {
-      // Cola drinks are commonly around 8-12mg caffeine per 100ml.
+    if (lower.contains('콜라') || lower.contains('cola') ||
+        lower.contains('coke') || lower.contains('코카콜라') ||
+        lower.contains('펩시') || lower.contains('pepsi')) {
       return 10.0;
     }
     return 0.0;

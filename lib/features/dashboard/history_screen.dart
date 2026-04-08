@@ -41,21 +41,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   NutritionTargets get _targets {
     final p = _userProfile;
     if (p == null) return NutritionTargets.defaultTargets;
-    return NutritionTargets(
-      calories: p.dailyCalorieTarget,
-      proteinG: NutritionCalculator.recommendedProteinTarget(
-        weightKg: p.weightKg,
-        goal: p.goal,
-        hasKidneyDisease: p.hasKidneyDisease,
-        hasLiverDisease: p.hasLiverDisease,
-      ),
-      carbsG: p.dailyCarbsTarget,
-      fatG: p.dailyFatTarget,
-      sodiumMg: p.dailySodiumTarget,
-      caffeineMax: p.goal == HealthGoal.medical ? 200 : 400,
-      sugarMax: 100,
-      fiberMin: p.gender == Gender.male ? 38 : 25,
-    );
+    return NutritionCalculator.fromUserProfile(p);
   }
 
   bool get _supportsExercise {

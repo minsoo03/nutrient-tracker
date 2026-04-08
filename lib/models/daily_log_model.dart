@@ -13,6 +13,7 @@ class DailyLogModel {
   final double totalAlcoholG;
   final double totalExerciseCalories;
   final double totalWaterMl;
+  final List<String> dailyMedications;
   final DateTime updatedAt;
 
   DailyLogModel({
@@ -28,6 +29,7 @@ class DailyLogModel {
     required this.totalAlcoholG,
     required this.totalExerciseCalories,
     required this.totalWaterMl,
+    required this.dailyMedications,
     required this.updatedAt,
   });
 
@@ -45,6 +47,7 @@ class DailyLogModel {
       totalAlcoholG: 0.0,
       totalExerciseCalories: 0.0,
       totalWaterMl: 0.0,
+      dailyMedications: const [],
       updatedAt: DateTime.now(),
     );
   }
@@ -66,6 +69,7 @@ class DailyLogModel {
       totalAlcoholG: (data['totalAlcoholG'] ?? 0.0).toDouble(),
       totalExerciseCalories: (data['totalExerciseCalories'] ?? 0.0).toDouble(),
       totalWaterMl: (data['totalWaterMl'] ?? 0.0).toDouble(),
+      dailyMedications: List<String>.from(data['dailyMedications'] ?? const []),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -84,6 +88,7 @@ class DailyLogModel {
       'totalAlcoholG': totalAlcoholG,
       'totalExerciseCalories': totalExerciseCalories,
       'totalWaterMl': totalWaterMl,
+      'dailyMedications': dailyMedications,
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
@@ -101,6 +106,7 @@ class DailyLogModel {
     double? totalAlcoholG,
     double? totalExerciseCalories,
     double? totalWaterMl,
+    List<String>? dailyMedications,
     DateTime? updatedAt,
   }) {
     return DailyLogModel(
@@ -116,6 +122,7 @@ class DailyLogModel {
       totalAlcoholG: totalAlcoholG ?? this.totalAlcoholG,
       totalExerciseCalories: totalExerciseCalories ?? this.totalExerciseCalories,
       totalWaterMl: totalWaterMl ?? this.totalWaterMl,
+      dailyMedications: dailyMedications ?? this.dailyMedications,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

@@ -31,7 +31,7 @@ class AddEntryHubScreen extends StatelessWidget {
             _HubCard(
               icon: Icons.medication_outlined,
               title: '약',
-              subtitle: '복용 약 관리',
+              subtitle: '오늘 복용 약 기록',
               onTap: () => context.push('/medications'),
             ),
             _HubCard(

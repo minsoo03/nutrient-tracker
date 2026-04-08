@@ -85,6 +85,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 context: context,
                 uid: uid,
                 date: _todayDate,
+                weightKg: _userProfile?.weightKg ?? 60,
                 nutritionService: _nutritionService,
               ),
               icon: const Icon(Icons.fitness_center),

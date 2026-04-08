@@ -1,6 +1,9 @@
-import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
-import 'package:nutrient_tracker/services/medicine_service.dart';
+import 'package:nutrient_tracker/models/daily_log_model.dart';
+import 'package:nutrient_tracker/services/health_load_calculator.dart';
+
+export 'package:nutrient_tracker/services/health_load_calculator.dart'
+    show HealthLoadCalculator;
 
 class NutritionTargets {
   final int calories;
@@ -36,6 +39,18 @@ class NutritionTargets {
 }
 
 class NutritionCalculator {
+  static NutritionTargets fromUserProfile(UserModel profile) {
+    return calculate(
+      age: profile.age,
+      gender: profile.gender,
+      heightCm: profile.heightCm,
+      weightKg: profile.weightKg,
+      goal: profile.goal,
+      hasKidneyDisease: profile.hasKidneyDisease,
+      hasLiverDisease: profile.hasLiverDisease,
+    );
+  }
+
   static int recommendedProteinTarget({
     required double weightKg,
     required HealthGoal goal,
@@ -68,20 +83,17 @@ class NutritionCalculator {
     required bool hasKidneyDisease,
     required bool hasLiverDisease,
   }) {
-    // BMR
     double bmr = 10 * weightKg + 6.25 * heightCm - 5 * age;
     if (gender == Gender.male) {
       bmr += 5;
     } else if (gender == Gender.female) {
       bmr -= 161;
     } else {
-      bmr -= 78; // 평균
+      bmr -= 78;
     }
 
-    // TDEE (가벼운 활동 기준 ×1.375)
     final tdee = bmr * 1.375;
 
-    // 목표별 칼로리 조정
     double calories = switch (goal) {
       HealthGoal.muscle => tdee + 300,
       HealthGoal.diet => (tdee - 500).clamp(
@@ -89,12 +101,11 @@ class NutritionCalculator {
       _ => tdee,
     };
 
-    // 목표별 매크로 비율 (탄수화물%, 단백질%, 지방%)
-    final (cRatio, pRatio, fRatio) = switch (goal) {
-      HealthGoal.muscle => (0.45, 0.30, 0.25),
-      HealthGoal.diet   => (0.40, 0.35, 0.25),
+    final (cRatio, _, fRatio) = switch (goal) {
+      HealthGoal.muscle  => (0.45, 0.30, 0.25),
+      HealthGoal.diet    => (0.40, 0.35, 0.25),
       HealthGoal.medical => (0.55, 0.20, 0.25),
-      _ /* health */    => (0.50, 0.25, 0.25),
+      _                  => (0.50, 0.25, 0.25),
     };
 
     int proteinG = recommendedProteinTarget(
@@ -105,12 +116,7 @@ class NutritionCalculator {
     );
     int carbsG   = (calories * cRatio / 4).round();
     int fatG     = (calories * fRatio / 9).round();
-    int sodiumMg = 2300;
-
-    // 질환 보정
-    if (hasKidneyDisease) {
-      sodiumMg = 1500;
-    }
+    int sodiumMg = hasKidneyDisease ? 1500 : 2300;
 
     return NutritionTargets(
       calories: calories.round(),
@@ -124,56 +130,21 @@ class NutritionCalculator {
     );
   }
 
+  /// 하위 호환 — HealthLoadCalculator로 위임
   static double estimateLiverLoad({
     required DailyLogModel log,
     required NutritionTargets targets,
     List<String> medications = const [],
     bool hasLiverDisease = false,
     bool hasKidneyDisease = false,
-  }) {
-    final sugarScore = ((log.totalSugarG / targets.sugarMax) * 35).clamp(0.0, 35.0);
-    final fatScore = ((log.totalFatG / targets.fatG) * 25).clamp(0.0, 25.0);
-    final caffeineScore =
-        ((log.totalCaffeineMg / targets.caffeineMax) * 15).clamp(0.0, 15.0);
-    final calorieScore =
-        ((log.totalCalories / targets.calories) * 15).clamp(0.0, 15.0);
-    final alcoholScore = (log.totalAlcoholG * 2).clamp(0.0, 10.0);
-    final proteinOverRatio =
-        ((log.totalProteinG - targets.proteinG) / targets.proteinG).clamp(0.0, 1.0);
-    final proteinScore = (proteinOverRatio * 8).clamp(0.0, 8.0);
-
-    final riskProfiles = MedicineService.getRiskProfiles(medications);
-    final medicationBaseScore = riskProfiles.fold<double>(
-      0,
-      (sum, profile) => sum + profile.liverWeight,
-    ).clamp(0.0, 20.0);
-    final medicationProteinScore = riskProfiles
-        .where((profile) => profile.sensitiveToProtein)
-        .fold<double>(0, (sum, _) => sum + proteinScore * 0.75)
-        .clamp(0.0, 12.0);
-    final medicationAlcoholScore = riskProfiles
-        .where((profile) => profile.sensitiveToAlcohol)
-        .fold<double>(0, (sum, _) => sum + (log.totalAlcoholG / 4))
-        .clamp(0.0, 10.0);
-    final medicationCaffeineScore = riskProfiles
-        .where((profile) => profile.sensitiveToCaffeine)
-        .fold<double>(0, (sum, _) => sum + (log.totalCaffeineMg / 120))
-        .clamp(0.0, 5.0);
-    final diseaseScore = (hasLiverDisease ? 8.0 : 0.0) + (hasKidneyDisease ? 4.0 : 0.0);
-
-    return (sugarScore +
-            fatScore +
-            caffeineScore +
-            calorieScore +
-            alcoholScore +
-            proteinScore +
-            medicationBaseScore +
-            medicationProteinScore +
-            medicationAlcoholScore +
-            medicationCaffeineScore +
-            diseaseScore)
-        .clamp(0.0, 100.0);
-  }
+  }) =>
+      HealthLoadCalculator.estimateLiverLoad(
+        log: log,
+        targets: targets,
+        medications: medications,
+        hasLiverDisease: hasLiverDisease,
+        hasKidneyDisease: hasKidneyDisease,
+      );
 
   static double estimateKidneyLoad({
     required DailyLogModel log,
@@ -181,44 +152,12 @@ class NutritionCalculator {
     List<String> medications = const [],
     bool hasKidneyDisease = false,
     bool hasLiverDisease = false,
-  }) {
-    final sodiumScore =
-        ((log.totalSodiumMg / targets.sodiumMg) * 30).clamp(0.0, 30.0);
-    final proteinOverRatio =
-        ((log.totalProteinG - targets.proteinG) / targets.proteinG).clamp(0.0, 1.0);
-    final proteinScore = (proteinOverRatio * 30).clamp(0.0, 30.0);
-    final caffeineScore =
-        ((log.totalCaffeineMg / targets.caffeineMax) * 8).clamp(0.0, 8.0);
-    final alcoholScore = (log.totalAlcoholG * 0.5).clamp(0.0, 6.0);
-
-    final riskProfiles = MedicineService.getRiskProfiles(medications);
-    final medicationBaseScore = riskProfiles.fold<double>(
-      0,
-      (sum, profile) => sum + profile.kidneyWeight,
-    ).clamp(0.0, 24.0);
-    final medicationProteinScore = riskProfiles
-        .where((profile) => profile.sensitiveToProtein)
-        .fold<double>(0, (sum, _) => sum + proteinScore * 0.35)
-        .clamp(0.0, 12.0);
-    final medicationAlcoholScore = riskProfiles
-        .where((profile) => profile.sensitiveToAlcohol)
-        .fold<double>(0, (sum, _) => sum + (log.totalAlcoholG / 6))
-        .clamp(0.0, 6.0);
-    final medicationCaffeineScore = riskProfiles
-        .where((profile) => profile.sensitiveToCaffeine)
-        .fold<double>(0, (sum, _) => sum + (log.totalCaffeineMg / 200))
-        .clamp(0.0, 4.0);
-    final diseaseScore = (hasKidneyDisease ? 10.0 : 0.0) + (hasLiverDisease ? 2.0 : 0.0);
-
-    return (sodiumScore +
-            proteinScore +
-            caffeineScore +
-            alcoholScore +
-            medicationBaseScore +
-            medicationProteinScore +
-            medicationAlcoholScore +
-            medicationCaffeineScore +
-            diseaseScore)
-        .clamp(0.0, 100.0);
-  }
+  }) =>
+      HealthLoadCalculator.estimateKidneyLoad(
+        log: log,
+        targets: targets,
+        medications: medications,
+        hasKidneyDisease: hasKidneyDisease,
+        hasLiverDisease: hasLiverDisease,
+      );
 }
