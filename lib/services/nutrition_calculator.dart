@@ -1,42 +1,12 @@
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/services/health_load_calculator.dart';
+import 'package:nutrient_tracker/services/nutrition_targets.dart';
 
 export 'package:nutrient_tracker/services/health_load_calculator.dart'
     show HealthLoadCalculator;
-
-class NutritionTargets {
-  final int calories;
-  final int proteinG;
-  final int carbsG;
-  final int fatG;
-  final int sodiumMg;
-  final int caffeineMax; // mg
-  final int sugarMax;   // g
-  final int fiberMin;   // g
-
-  const NutritionTargets({
-    required this.calories,
-    required this.proteinG,
-    required this.carbsG,
-    required this.fatG,
-    required this.sodiumMg,
-    required this.caffeineMax,
-    required this.sugarMax,
-    required this.fiberMin,
-  });
-
-  static const defaultTargets = NutritionTargets(
-    calories: 2000,
-    proteinG: 60,
-    carbsG: 250,
-    fatG: 65,
-    sodiumMg: 2300,
-    caffeineMax: 400,
-    sugarMax: 100,
-    fiberMin: 25,
-  );
-}
+export 'package:nutrient_tracker/services/nutrition_targets.dart'
+    show NutritionTargets;
 
 class NutritionCalculator {
   static NutritionTargets fromUserProfile(UserModel profile) {
@@ -63,13 +33,11 @@ class NutritionCalculator {
       HealthGoal.medical => 0.8,
       _ => 1.0,
     };
-
     if (hasKidneyDisease) {
       gramsPerKg = 0.8;
     } else if (hasLiverDisease) {
       gramsPerKg = gramsPerKg.clamp(0.8, 1.0);
     }
-
     return (weightKg * gramsPerKg).round();
   }
 
@@ -91,23 +59,19 @@ class NutritionCalculator {
     } else {
       bmr -= 78;
     }
-
     final tdee = bmr * 1.375;
-
     double calories = switch (goal) {
       HealthGoal.muscle => tdee + 300,
       HealthGoal.diet => (tdee - 500).clamp(
           gender == Gender.female ? 1200.0 : 1500.0, double.infinity),
       _ => tdee,
     };
-
     final (cRatio, _, fRatio) = switch (goal) {
       HealthGoal.muscle  => (0.45, 0.30, 0.25),
       HealthGoal.diet    => (0.40, 0.35, 0.25),
       HealthGoal.medical => (0.55, 0.20, 0.25),
       _                  => (0.50, 0.25, 0.25),
     };
-
     int proteinG = recommendedProteinTarget(
       weightKg: weightKg,
       goal: goal,

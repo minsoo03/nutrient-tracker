@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:nutrient_tracker/utils/portion_helper.dart';
 
 class FoodEntryModel {
   final String? id;
@@ -67,13 +68,16 @@ class FoodEntryModel {
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     final d = doc.data() ?? {};
+    final foodName = d['food_name'] ?? '';
+    final amountG = (d['amount_g'] ?? 0.0).toDouble();
+    final inferredUnit = _inferAmountUnit(foodName as String);
     return FoodEntryModel(
       id: doc.id,
       foodId: d['food_id'] ?? '',
-      foodName: d['food_name'] ?? '',
-      amountG: (d['amount_g'] ?? 0.0).toDouble(),
-      amountValue: (d['amount_value'] ?? d['amount_g'] ?? 0.0).toDouble(),
-      amountUnit: d['amount_unit'] ?? 'g',
+      foodName: foodName,
+      amountG: amountG,
+      amountValue: (d['amount_value'] ?? _inferAmountValue(foodName, amountG)).toDouble(),
+      amountUnit: d['amount_unit'] ?? inferredUnit,
       entryType: d['entry_type'] ?? 'food',
       calories: (d['calories'] ?? 0.0).toDouble(),
       carbsG: (d['carbs_g'] ?? 0.0).toDouble(),
@@ -97,5 +101,18 @@ class FoodEntryModel {
       'custom' => value,
       _ => '${value}g',
     };
+  }
+
+  static String _inferAmountUnit(String foodName) {
+    if (PortionHelper.usesPieceCount(foodName)) return 'piece';
+    if (PortionHelper.usesMilliliters(foodName)) return 'ml';
+    return 'g';
+  }
+
+  static double _inferAmountValue(String foodName, double amountG) {
+    if (PortionHelper.usesPieceCount(foodName)) {
+      return amountG / PortionHelper.gramsPerPiece(foodName);
+    }
+    return amountG;
   }
 }

@@ -1,6 +1,6 @@
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/services/medicine_service.dart';
-import 'package:nutrient_tracker/services/nutrition_calculator.dart';
+import 'package:nutrient_tracker/services/nutrition_targets.dart';
 
 /// 간/신장 부하 점수 계산 (0~100)
 class HealthLoadCalculator {

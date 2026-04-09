@@ -121,10 +121,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     final inputProfile = PortionHelper.inputProfileFor(food.name);
     final usesMl = inputProfile.usesMilliliters;
     final usesPiece = PortionHelper.usesPieceCount(food.name);
-    final amountValue =
-        usesPiece ? amountG / PortionHelper.gramsPerPiece(food.name) : amountG;
-    final amountUnit =
-        usesPiece ? 'piece' : (usesMl ? 'ml' : 'g');
+    final amountValue = usesPiece ? amountG / PortionHelper.gramsPerPiece(food.name) : amountG;
+    final amountUnit = usesPiece ? 'piece' : (usesMl ? 'ml' : 'g');
     final entryType = switch (inputProfile.category) {
       FoodUiCategory.alcoholicDrink => 'alcohol',
       FoodUiCategory.proteinSupplement => 'supplement',

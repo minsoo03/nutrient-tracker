@@ -33,7 +33,14 @@ class KoreanFoodService {
     debugPrint('🍱 총 ${all.length}개 결과');
 
     final seen = <String>{};
-    return all.where((f) => f.name.isNotEmpty && seen.add(f.name)).toList();
+    return all
+        .where((f) => f.name.isNotEmpty)
+        .where(
+          (f) => seen.add(
+            '${f.source}:${f.id}:${f.name}:${f.nutritionBasisLabel}',
+          ),
+        )
+        .toList();
   }
 
   Future<List<FoodModel>> _fetchOne({

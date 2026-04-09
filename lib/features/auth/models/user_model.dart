@@ -55,10 +55,10 @@ class UserModel {
       uid: doc.id,
       name: d['name'] as String? ?? '',
       age: (d['age'] as num?)?.toInt() ?? 0,
-      gender: Gender.values.byName(genderName),
+      gender: _parseGender(genderName),
       heightCm: (d['heightCm'] as num?)?.toDouble() ?? 0,
       weightKg: (d['weightKg'] as num?)?.toDouble() ?? 0,
-      goal: HealthGoal.values.byName(goalName),
+      goal: _parseGoal(goalName),
       dailyCalorieTarget: (d['dailyCalorieTarget'] as num?)?.toInt() ?? 2000,
       dailyProteinTarget: (d['dailyProteinTarget'] as num?)?.toInt() ?? 60,
       dailyCarbsTarget: (d['dailyCarbsTarget'] as num?)?.toInt() ?? 250,
@@ -72,6 +72,20 @@ class UserModel {
           createdAt,
       createdAt: createdAt,
     );
+  }
+
+  static Gender _parseGender(String raw) {
+    for (final value in Gender.values) {
+      if (value.name == raw) return value;
+    }
+    return Gender.other;
+  }
+
+  static HealthGoal _parseGoal(String raw) {
+    for (final value in HealthGoal.values) {
+      if (value.name == raw) return value;
+    }
+    return HealthGoal.health;
   }
 
   Map<String, dynamic> toFirestore() {

@@ -167,8 +167,7 @@ class PortionHelper {
     ],
   };
 
-  /// 음식 이름에 맞는 기본 섭취량 목록 반환
-  /// 없으면 빈 리스트 (→ 직접 입력만 제공)
+  /// 음식 이름에 맞는 기본 섭취량 목록 반환. 없으면 빈 리스트.
   static List<PortionOption> getPortions(String foodName) {
     final lower = foodName.toLowerCase();
     for (final entry in _map.entries) {
@@ -185,21 +184,16 @@ class PortionHelper {
   }
 
   static bool usesPieceCount(String foodName) {
-    final lower = foodName.toLowerCase();
-    return lower.contains('계란 후라이') ||
-        lower.contains('계란후라이') ||
-        lower.contains('달걀 후라이') ||
-        lower.contains('달걀후라이') ||
-        lower.contains('후라이드 에그') ||
-        lower.contains('후라이드에그') ||
-        lower.contains('fried egg');
+    final l = foodName.toLowerCase();
+    return l.contains('계란 후라이') || l.contains('계란후라이') ||
+        l.contains('달걀 후라이') || l.contains('달걀후라이') ||
+        l.contains('후라이드 에그') || l.contains('후라이드에그') ||
+        l.contains('fried egg');
   }
 
-  static double gramsPerPiece(String foodName) {
-    return _defaultEggPieceGrams;
-  }
+  static double gramsPerPiece(String foodName) => _defaultEggPieceGrams;
 
-  /// FoodInputClassifier에 위임 (하위 호환 유지)
+  /// FoodInputClassifier에 위임 — 하위 호환 유지
   static FoodInputProfile inputProfileFor(String foodName) {
     return FoodInputClassifier.inputProfileFor(foodName);
   }
