@@ -8,6 +8,10 @@ import 'package:nutrient_tracker/models/food_model.dart';
 /// (source, endpoint, 검색파라미터명)
 class KoreanFoodService {
   static String get _apiKey => (dotenv.env['DATA_API_KEY'] ?? '').trim();
+  static String get _mfdsApiKey =>
+      (dotenv.env['MFDS_API_KEY'] ?? dotenv.env['DATA_API_KEY'] ?? '').trim();
+  static const _mfdsFoodDbUrl =
+      'https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02';
 
   static const _apis = [
     ('nutri',    'https://api.data.go.kr/openapi/tn_pubr_public_nutri_info_api',                                    'foodNm'),
@@ -23,10 +27,13 @@ class KoreanFoodService {
     if (key.isEmpty) return [];
     if (query.trim().isEmpty) return [];
 
-    final futures = _apis.map((api) {
+    final futures = <Future<List<FoodModel>>>[
+      _fetchMfdsFoodDb(query),
+      ..._apis.map((api) {
       final (source, url, queryParam) = api;
       return _fetchOne(url: url, source: source, queryParam: queryParam, query: query);
-    });
+      }),
+    ];
 
     final results = await Future.wait(futures);
     final all = results.expand((r) => r).toList();
@@ -92,6 +99,60 @@ class KoreanFoodService {
           .toList();
     } catch (e) {
       debugPrint('💥 [$source] 예외: $e');
+      return [];
+    }
+  }
+
+  Future<List<FoodModel>> _fetchMfdsFoodDb(String query) async {
+    final key = _mfdsApiKey;
+    if (key.isEmpty) return [];
+
+    try {
+      final uri = Uri.parse(_mfdsFoodDbUrl).replace(queryParameters: {
+        'serviceKey': key,
+        'pageNo': '1',
+        'numOfRows': '20',
+        'type': 'json',
+        'DESC_KOR': query,
+      });
+
+      debugPrint('📡 [mfds_food_db] DESC_KOR=$query');
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      debugPrint('📡 [mfds_food_db] status=${response.statusCode}');
+
+      if (response.statusCode != 200) return [];
+      if (response.body.trim().toLowerCase() == 'unauthorized') {
+        debugPrint('❌ [mfds_food_db] Unauthorized');
+        return [];
+      }
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final header = json['header'] ?? json['response']?['header'];
+      final code = header?['resultCode'] as String? ?? '';
+      final msg = header?['resultMsg'] as String? ?? '';
+
+      if (code.isNotEmpty && !code.startsWith('0')) {
+        debugPrint('❌ [mfds_food_db] $code $msg');
+        return [];
+      }
+
+      final body = json['body'] ?? json['response']?['body'];
+      final rawItems = body?['items'] ?? body?['item'];
+      if (rawItems == null) {
+        debugPrint('⚠️  [mfds_food_db] 결과 없음');
+        return [];
+      }
+
+      final List<dynamic> items = rawItems is List ? rawItems : [rawItems];
+      debugPrint('✅ [mfds_food_db] ${items.length}개');
+
+      return items
+          .map((item) => FoodModel.fromMfds(item as Map<String, dynamic>))
+          .where((f) => f.name.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('💥 [mfds_food_db] 예외: $e');
       return [];
     }
   }

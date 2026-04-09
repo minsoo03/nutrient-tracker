@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
 import 'package:nutrient_tracker/features/dashboard/widgets/dashboard_daily_view.dart';
