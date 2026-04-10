@@ -52,13 +52,13 @@ class NutritionService {
     String date,
     List<String> medications,
   ) async {
-    final current = await getDailyLog(uid, date);
-    await saveDailyLog(
-      uid,
-      current.copyWith(
-        dailyMedications: medications,
-        updatedAt: DateTime.now(),
-      ),
+    await _logsCol(uid).doc(date).set(
+      {
+        'date': date,
+        'dailyMedications': medications,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      },
+      SetOptions(merge: true),
     );
   }
 
@@ -69,8 +69,11 @@ class NutritionService {
     FoodEntryModel entry,
   ) async {
     try {
-      await _entriesCol(uid, date).add(entry.toFirestore());
-      await _recalculateDailyTotals(uid, date);
+      final batch = _firestore.batch();
+      final entryRef = _entriesCol(uid, date).doc();
+      batch.set(entryRef, entry.toFirestore());
+      _applyFoodDelta(batch, uid, date, entry, 1);
+      await batch.commit();
     } catch (e, st) {
       debugPrint('❌ addFoodEntry 실패: uid=$uid, date=$date, error=$e');
       debugPrintStack(stackTrace: st);
@@ -84,8 +87,15 @@ class NutritionService {
     String date,
     String entryId,
   ) async {
-    await _entriesCol(uid, date).doc(entryId).delete();
-    await _recalculateDailyTotals(uid, date);
+    final entryRef = _entriesCol(uid, date).doc(entryId);
+    final doc = await entryRef.get();
+    if (!doc.exists) return;
+
+    final entry = FoodEntryModel.fromFirestore(doc);
+    final batch = _firestore.batch();
+    batch.delete(entryRef);
+    _applyFoodDelta(batch, uid, date, entry, -1);
+    await batch.commit();
   }
 
   /// Watch food entries for a specific date.
@@ -106,8 +116,11 @@ class NutritionService {
     ExerciseEntryModel entry,
   ) async {
     try {
-      await _exercisesCol(uid, date).add(entry.toFirestore());
-      await _recalculateDailyTotals(uid, date);
+      final batch = _firestore.batch();
+      final entryRef = _exercisesCol(uid, date).doc();
+      batch.set(entryRef, entry.toFirestore());
+      _applyExerciseDelta(batch, uid, date, entry.burnedCalories);
+      await batch.commit();
     } catch (e, st) {
       debugPrint('❌ addExerciseEntry 실패: uid=$uid, date=$date, error=$e');
       debugPrintStack(stackTrace: st);
@@ -120,8 +133,15 @@ class NutritionService {
     String date,
     String entryId,
   ) async {
-    await _exercisesCol(uid, date).doc(entryId).delete();
-    await _recalculateDailyTotals(uid, date);
+    final entryRef = _exercisesCol(uid, date).doc(entryId);
+    final doc = await entryRef.get();
+    if (!doc.exists) return;
+
+    final entry = ExerciseEntryModel.fromFirestore(doc);
+    final batch = _firestore.batch();
+    batch.delete(entryRef);
+    _applyExerciseDelta(batch, uid, date, -entry.burnedCalories);
+    await batch.commit();
   }
 
   Stream<List<ExerciseEntryModel>> watchExerciseEntries(String uid, String date) {
@@ -135,48 +155,47 @@ class NutritionService {
         );
   }
 
-  Future<void> _recalculateDailyTotals(String uid, String date) async {
-    final snap = await _entriesCol(uid, date).get();
-    final exerciseSnap = await _exercisesCol(uid, date).get();
-    final currentLog = await getDailyLog(uid, date);
-    double cal = 0, carbs = 0, protein = 0, fat = 0;
-    double sugar = 0, fiber = 0, sodium = 0, caffeine = 0, alcohol = 0;
-    double exerciseCalories = 0;
-
-    for (final doc in snap.docs) {
-      final d = doc.data();
-      cal += (d['calories'] ?? 0.0).toDouble();
-      carbs += (d['carbs_g'] ?? 0.0).toDouble();
-      protein += (d['protein_g'] ?? 0.0).toDouble();
-      fat += (d['fat_g'] ?? 0.0).toDouble();
-      sugar += (d['sugar_g'] ?? 0.0).toDouble();
-      fiber += (d['fiber_g'] ?? 0.0).toDouble();
-      sodium += (d['sodium_mg'] ?? 0.0).toDouble();
-      caffeine += (d['caffeine_mg'] ?? 0.0).toDouble();
-      alcohol += (d['alcohol_g'] ?? 0.0).toDouble();
-    }
-
-    for (final doc in exerciseSnap.docs) {
-      final d = doc.data();
-      exerciseCalories += (d['burned_calories'] ?? 0.0).toDouble();
-    }
-
-    final log = DailyLogModel(
-      date: date,
-      totalCalories: cal,
-      totalCarbsG: carbs,
-      totalProteinG: protein,
-      totalFatG: fat,
-      totalSugarG: sugar,
-      totalFiberG: fiber,
-      totalSodiumMg: sodium,
-      totalCaffeineMg: caffeine,
-      totalAlcoholG: alcohol,
-      totalExerciseCalories: exerciseCalories,
-      totalWaterMl: 0,
-      dailyMedications: currentLog.dailyMedications,
-      updatedAt: DateTime.now(),
+  void _applyFoodDelta(
+    WriteBatch batch,
+    String uid,
+    String date,
+    FoodEntryModel entry,
+    int direction,
+  ) {
+    final multiplier = direction.toDouble();
+    batch.set(
+      _logsCol(uid).doc(date),
+      {
+        'date': date,
+        'totalCalories': FieldValue.increment(entry.calories * multiplier),
+        'totalCarbsG': FieldValue.increment(entry.carbsG * multiplier),
+        'totalProteinG': FieldValue.increment(entry.proteinG * multiplier),
+        'totalFatG': FieldValue.increment(entry.fatG * multiplier),
+        'totalSugarG': FieldValue.increment(entry.sugarG * multiplier),
+        'totalFiberG': FieldValue.increment(entry.fiberG * multiplier),
+        'totalSodiumMg': FieldValue.increment(entry.sodiumMg * multiplier),
+        'totalCaffeineMg': FieldValue.increment(entry.caffeineMg * multiplier),
+        'totalAlcoholG': FieldValue.increment(entry.alcoholG * multiplier),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      },
+      SetOptions(merge: true),
     );
-    await saveDailyLog(uid, log);
+  }
+
+  void _applyExerciseDelta(
+    WriteBatch batch,
+    String uid,
+    String date,
+    double burnedCaloriesDelta,
+  ) {
+    batch.set(
+      _logsCol(uid).doc(date),
+      {
+        'date': date,
+        'totalExerciseCalories': FieldValue.increment(burnedCaloriesDelta),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      },
+      SetOptions(merge: true),
+    );
   }
 }

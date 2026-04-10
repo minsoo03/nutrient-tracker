@@ -67,14 +67,26 @@ class _MedicationScreenState extends State<MedicationScreen> {
       ));
       context.pop();
     } catch (e) {
+      debugPrint('❌ medication save failed: uid=$uid, date=$_todayDate, error=$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('약 저장 실패: $e'),
+        content: Text('약 저장 실패: ${_friendlyMedicationError(e)}'),
         backgroundColor: AppColors.error,
       ));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  String _friendlyMedicationError(Object error) {
+    final message = error.toString();
+    if (message.contains('permission-denied')) {
+      return 'Firestore 권한이 없습니다. users/{uid}/daily_logs 쓰기 규칙을 확인해주세요.';
+    }
+    if (message.contains('unavailable') || message.contains('network')) {
+      return '네트워크 연결을 확인해주세요.';
+    }
+    return message;
   }
 
   void _onDailyToggled(String med, bool selected) {
