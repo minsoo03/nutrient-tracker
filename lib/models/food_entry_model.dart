@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nutrient_tracker/utils/portion_helper.dart';
 
 class FoodEntryModel {
@@ -42,8 +41,10 @@ class FoodEntryModel {
     required this.mealType,
   });
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toSupabase({required String uid, required String date}) {
     return {
+      'user_id': uid,
+      'log_date': date,
       'food_id': foodId,
       'food_name': foodName,
       'amount_g': amountG,
@@ -59,24 +60,22 @@ class FoodEntryModel {
       'sodium_mg': sodiumMg,
       'caffeine_mg': caffeineMg,
       'alcohol_g': alcoholG,
-      'logged_at': Timestamp.fromDate(loggedAt),
+      'logged_at': loggedAt.toIso8601String(),
       'meal_type': mealType,
     };
   }
 
-  factory FoodEntryModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final d = doc.data() ?? {};
+  factory FoodEntryModel.fromSupabase(Map<String, dynamic> d) {
     final foodName = d['food_name'] ?? '';
     final amountG = (d['amount_g'] ?? 0.0).toDouble();
     final inferredUnit = _inferAmountUnit(foodName as String);
     return FoodEntryModel(
-      id: doc.id,
+      id: d['id']?.toString(),
       foodId: d['food_id'] ?? '',
       foodName: foodName,
       amountG: amountG,
-      amountValue: (d['amount_value'] ?? _inferAmountValue(foodName, amountG)).toDouble(),
+      amountValue: (d['amount_value'] ?? _inferAmountValue(foodName, amountG))
+          .toDouble(),
       amountUnit: d['amount_unit'] ?? inferredUnit,
       entryType: d['entry_type'] ?? 'food',
       calories: (d['calories'] ?? 0.0).toDouble(),
@@ -88,13 +87,15 @@ class FoodEntryModel {
       sodiumMg: (d['sodium_mg'] ?? 0.0).toDouble(),
       caffeineMg: (d['caffeine_mg'] ?? 0.0).toDouble(),
       alcoholG: (d['alcohol_g'] ?? 0.0).toDouble(),
-      loggedAt: (d['logged_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      loggedAt: _parseDate(d['logged_at']) ?? DateTime.now(),
       mealType: d['meal_type'] ?? 'snack',
     );
   }
 
   String get displayAmountText {
-    final value = amountValue % 1 == 0 ? amountValue.toStringAsFixed(0) : amountValue.toStringAsFixed(1);
+    final value = amountValue % 1 == 0
+        ? amountValue.toStringAsFixed(0)
+        : amountValue.toStringAsFixed(1);
     return switch (amountUnit) {
       'piece' => '$value개',
       'ml' => '${value}ml',
@@ -114,5 +115,11 @@ class FoodEntryModel {
       return amountG / PortionHelper.gramsPerPiece(foodName);
     }
     return amountG;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }

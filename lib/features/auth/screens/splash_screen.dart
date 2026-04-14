@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // 프로필 존재 여부 확인 → 없으면 /profile-setup으로
     try {
-      final profile = await auth.getUserProfile(user.uid);
+      final profile = await auth.getUserProfile(user.id);
       if (!mounted) return;
       if (profile == null) {
         context.go('/profile-setup');
@@ -57,10 +57,10 @@ class _SplashScreenState extends State<SplashScreen> {
             Text(
               'Nutrient Tracker',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 48),
             const CircularProgressIndicator(

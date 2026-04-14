@@ -30,7 +30,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     if (uid.isEmpty) return;
     final profile = await _auth.getUserProfile(uid);
     if (mounted) {
@@ -49,9 +49,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return goal == HealthGoal.diet || goal == HealthGoal.muscle;
   }
 
+  Future<void> _selectDate(DateTime date) async {
+    setState(() => _selectedDate = date);
+
+    final uid = _auth.currentUser?.id ?? '';
+    if (uid.isEmpty) return;
+
+    try {
+      await _nutritionService.rebuildDailyLogTotals(uid, _dateKey(date));
+    } catch (e) {
+      debugPrint('기록 합계 재계산 실패: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     final selectedDateKey = _dateKey(_selectedDate);
 
     return Scaffold(
@@ -61,7 +74,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           IconButton(
             tooltip: '오늘로 이동',
-            onPressed: () => setState(() => _selectedDate = DateTime.now()),
+            onPressed: () => _selectDate(DateTime.now()),
             icon: const Icon(Icons.today),
           ),
           IconButton(
@@ -92,8 +105,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.calendar_month_outlined,
-                                color: AppColors.primary),
+                            const Icon(
+                              Icons.calendar_month_outlined,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               '${_selectedDate.month}월 ${_selectedDate.day}일 기록',
@@ -109,9 +124,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           initialDate: _selectedDate,
                           firstDate: DateTime(2024, 1, 1),
                           lastDate: DateTime.now(),
-                          onDateChanged: (date) {
-                            setState(() => _selectedDate = date);
-                          },
+                          onDateChanged: _selectDate,
                         ),
                       ],
                     ),
@@ -119,9 +132,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 Expanded(
                   child: StreamBuilder<DailyLogModel>(
-                    stream: _nutritionService.watchDailyLog(uid, selectedDateKey),
+                    key: ValueKey(selectedDateKey),
+                    stream: _nutritionService.watchDailyLog(
+                      uid,
+                      selectedDateKey,
+                    ),
                     builder: (context, snapshot) {
-                      final log = snapshot.data ?? DailyLogModel.empty(selectedDateKey);
+                      final log =
+                          snapshot.data ?? DailyLogModel.empty(selectedDateKey);
                       return DashboardDailyView(
                         log: log,
                         targets: _targets,

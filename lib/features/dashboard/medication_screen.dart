@@ -33,7 +33,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     if (uid.isEmpty) return;
     final profile = await _auth.getUserProfile(uid);
     final todayLog = await _nutritionService.getDailyLog(uid, _todayDate);
@@ -54,25 +54,37 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
   Future<void> _save() async {
     final profile = _userProfile;
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     if (profile == null || uid.isEmpty) return;
     setState(() => _isSaving = true);
     try {
-      await _auth.saveUserProfile(profile.copyWith(medications: _chronicSelected));
-      await _nutritionService.saveDailyMedications(uid, _todayDate, _dailySelected);
+      await _auth.saveUserProfile(
+        profile.copyWith(medications: _chronicSelected),
+      );
+      await _nutritionService.saveDailyMedications(
+        uid,
+        _todayDate,
+        _dailySelected,
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('오늘 복용 약과 상시 복용약이 저장되었습니다.'),
-        backgroundColor: AppColors.primary,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('오늘 복용 약과 상시 복용약이 저장되었습니다.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
       context.pop();
     } catch (e) {
-      debugPrint('❌ medication save failed: uid=$uid, date=$_todayDate, error=$e');
+      debugPrint(
+        '❌ medication save failed: uid=$uid, date=$_todayDate, error=$e',
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('약 저장 실패: ${_friendlyMedicationError(e)}'),
-        backgroundColor: AppColors.error,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('약 저장 실패: ${_friendlyMedicationError(e)}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -80,8 +92,8 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
   String _friendlyMedicationError(Object error) {
     final message = error.toString();
-    if (message.contains('permission-denied')) {
-      return 'Firestore 권한이 없습니다. users/{uid}/daily_logs 쓰기 규칙을 확인해주세요.';
+    if (message.contains('permission') || message.contains('row-level')) {
+      return 'Supabase 권한이 없습니다. RLS 정책과 로그인 상태를 확인해주세요.';
     }
     if (message.contains('unavailable') || message.contains('network')) {
       return '네트워크 연결을 확인해주세요.';
@@ -111,7 +123,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     return Scaffold(
       appBar: AppBar(
         title: const Text('복용 약 관리'),
@@ -135,16 +147,16 @@ class _MedicationScreenState extends State<MedicationScreen> {
       body: uid.isEmpty
           ? const Center(child: Text('로그인이 필요합니다'))
           : _userProfile == null
-              ? const Center(child: CircularProgressIndicator())
-              : MedicationBody(
-                  userProfile: _userProfile!,
-                  dailySelected: _dailySelected,
-                  chronicSelected: _chronicSelected,
-                  isSaving: _isSaving,
-                  onDailyToggled: _onDailyToggled,
-                  onChronicToggled: _onChronicToggled,
-                  onSave: _save,
-                ),
+          ? const Center(child: CircularProgressIndicator())
+          : MedicationBody(
+              userProfile: _userProfile!,
+              dailySelected: _dailySelected,
+              chronicSelected: _chronicSelected,
+              isSaving: _isSaving,
+              onDailyToggled: _onDailyToggled,
+              onChronicToggled: _onChronicToggled,
+              onSave: _save,
+            ),
     );
   }
 }

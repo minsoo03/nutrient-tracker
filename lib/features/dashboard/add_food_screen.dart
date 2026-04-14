@@ -15,10 +15,7 @@ enum AddFoodMode { food, drink }
 class AddFoodScreen extends StatefulWidget {
   final AddFoodMode mode;
 
-  const AddFoodScreen({
-    super.key,
-    this.mode = AddFoodMode.food,
-  });
+  const AddFoodScreen({super.key, this.mode = AddFoodMode.food});
 
   @override
   State<AddFoodScreen> createState() => _AddFoodScreenState();
@@ -51,7 +48,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
   Future<void> _search(String query) async {
     if (query.trim().isEmpty) return;
-    setState(() { _loading = true; _results = []; _status = ''; });
+    setState(() {
+      _loading = true;
+      _results = [];
+      _status = '';
+    });
 
     final raw = await _searchService.searchFoods(query);
     final filtered = raw.where(_matchesMode).toList();
@@ -85,27 +86,41 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     final dialogResult = await showAmountDialog(context, food);
     if (dialogResult == null || !mounted) return;
 
-    final (amountG, mealType, extraNutrition, companionLabel,
-        caffeineOverrideMg, sugarOverrideG, isZeroDrink) = dialogResult;
+    final (
+      amountG,
+      mealType,
+      extraNutrition,
+      companionLabel,
+      caffeineOverrideMg,
+      sugarOverrideG,
+      isZeroDrink,
+    ) = dialogResult;
 
-    final uid = _authService.currentUser?.uid ?? '';
+    final uid = _authService.currentUser?.id ?? '';
     if (uid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('로그인 정보가 없어 저장할 수 없습니다. 다시 로그인해주세요.'),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인 정보가 없어 저장할 수 없습니다. 다시 로그인해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     final scaledBase = food.per100g.scaled(amountG);
     final adjustedSugarG = sugarOverrideG ?? scaledBase.sugarG;
     final sugarDelta = adjustedSugarG - scaledBase.sugarG;
-    final adjustedCarbsG =
-        (scaledBase.carbsG + sugarDelta).clamp(0.0, double.infinity);
-    final adjustedCalories =
-        (scaledBase.calories + sugarDelta * 4).clamp(0.0, double.infinity);
+    final adjustedCarbsG = (scaledBase.carbsG + sugarDelta).clamp(
+      0.0,
+      double.infinity,
+    );
+    final adjustedCalories = (scaledBase.calories + sugarDelta * 4).clamp(
+      0.0,
+      double.infinity,
+    );
     final finalCaffeineMg =
-        (caffeineOverrideMg ?? scaledBase.caffeineMg) + extraNutrition.caffeineMg;
+        (caffeineOverrideMg ?? scaledBase.caffeineMg) +
+        extraNutrition.caffeineMg;
     final scaled = FoodNutrition(
       calories: adjustedCalories + extraNutrition.calories,
       carbsG: adjustedCarbsG + extraNutrition.carbsG,
@@ -121,7 +136,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     final inputProfile = PortionHelper.inputProfileFor(food.name);
     final usesMl = inputProfile.usesMilliliters;
     final usesPiece = PortionHelper.usesPieceCount(food.name);
-    final amountValue = usesPiece ? amountG / PortionHelper.gramsPerPiece(food.name) : amountG;
+    final amountValue = usesPiece
+        ? amountG / PortionHelper.gramsPerPiece(food.name)
+        : amountG;
     final amountUnit = usesPiece ? 'piece' : (usesMl ? 'ml' : 'g');
     final entryType = switch (inputProfile.category) {
       FoodUiCategory.alcoholicDrink => 'alcohol',
@@ -129,9 +146,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       FoodUiCategory.beverage || FoodUiCategory.caffeinatedDrink => 'drink',
       _ => 'food',
     };
-    final parts = <String>[
-      if (isZeroDrink) '제로',
-    ];
+    final parts = <String>[if (isZeroDrink) '제로'];
     if (companionLabel != null) {
       parts.add(companionLabel);
     }
@@ -159,11 +174,13 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     try {
       await _nutritionService.addFoodEntry(uid, _todayDate, entry);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${food.name} 추가됨 (${entry.displayAmountText})'),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 2),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${food.name} 추가됨 (${entry.displayAmountText})'),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
       Navigator.pop(context);
     } catch (e) {
       debugPrint('❌ 음식 추가 실패: $e');
@@ -191,7 +208,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         onChanged: (v) => setState(() {}),
         onClear: () {
           _searchCtrl.clear();
-          setState(() { _results = []; _status = ''; });
+          setState(() {
+            _results = [];
+            _status = '';
+          });
         },
         onFoodTap: _addFood,
       ),

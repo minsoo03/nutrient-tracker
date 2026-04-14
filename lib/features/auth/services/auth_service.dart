@@ -1,82 +1,65 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
+import 'package:nutrient_tracker/features/auth/models/user_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _client = Supabase.instance.client;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges =>
+      _client.auth.onAuthStateChange.map((event) => event.session?.user);
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser => _client.auth.currentUser;
 
-  Future<UserCredential> signInWithEmail(
-    String email,
-    String password,
-  ) async {
+  Future<AuthResponse> signInWithEmail(String email, String password) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      return await _client.auth.signInWithPassword(
         email: email,
         password: password,
       );
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       throw Exception(_authErrorMessage(e));
     }
   }
 
-  Future<UserCredential> signUpWithEmail(
-    String email,
-    String password,
-  ) async {
+  Future<AuthResponse> signUpWithEmail(String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
+      return await _client.auth.signUp(email: email, password: password);
+    } on AuthException catch (e) {
       throw Exception(_authErrorMessage(e));
     }
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _client.auth.signOut();
   }
 
   Future<void> saveUserProfile(UserModel user) async {
-    await _firestore.collection('users').doc(user.uid).set(
-          user.toFirestore(),
-          SetOptions(merge: true),
-        );
+    await _client.from('profiles').upsert(user.toSupabase());
   }
 
   Future<UserModel?> getUserProfile(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) {
-      return UserModel.fromFirestore(doc);
-    }
-    return null;
+    final row = await _client
+        .from('profiles')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
+    if (row == null) return null;
+    return UserModel.fromSupabase(row);
   }
 
-  String _authErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return '이메일 형식이 올바르지 않습니다.';
-      case 'email-already-in-use':
-        return '이미 사용 중인 이메일입니다.';
-      case 'weak-password':
-        return '비밀번호가 너무 약합니다. 6자 이상으로 입력해주세요.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return '이메일 또는 비밀번호가 올바르지 않습니다.';
-      case 'operation-not-allowed':
-        return '현재 이메일 회원가입이 비활성화되어 있습니다. Firebase Auth 설정을 확인해주세요.';
-      case 'network-request-failed':
-        return '네트워크 오류가 발생했습니다. 연결을 확인해주세요.';
-      case 'too-many-requests':
-        return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
-      default:
-        return e.message ?? '인증 처리 중 오류가 발생했습니다. (${e.code})';
+  String _authErrorMessage(AuthException e) {
+    final message = e.message.toLowerCase();
+    if (message.contains('invalid login credentials')) {
+      return '이메일 또는 비밀번호가 올바르지 않습니다.';
     }
+    if (message.contains('email') && message.contains('invalid')) {
+      return '이메일 형식이 올바르지 않습니다.';
+    }
+    if (message.contains('already') || message.contains('registered')) {
+      return '이미 사용 중인 이메일입니다.';
+    }
+    if (message.contains('password')) {
+      return '비밀번호는 6자 이상이어야 합니다.';
+    }
+    return e.message;
   }
 }

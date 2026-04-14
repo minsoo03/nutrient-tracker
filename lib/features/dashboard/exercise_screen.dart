@@ -30,7 +30,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     if (uid.isEmpty) return;
     final profile = await _auth.getUserProfile(uid);
     if (mounted) setState(() => _userProfile = profile);
@@ -43,7 +43,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     return Scaffold(
       appBar: AppBar(
         title: const Text('운동 기록'),
@@ -67,17 +67,15 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       body: uid.isEmpty
           ? const Center(child: Text('로그인이 필요합니다'))
           : !_supportsExercise
-              ? const Center(
-                  child: Text('운동 기능은 다이어트/근육 증가 목표에서 사용할 수 있습니다.'),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: ExerciseLogSection(
-                    uid: uid,
-                    date: _todayDate,
-                    nutritionService: _nutritionService,
-                  ),
-                ),
+          ? const Center(child: Text('운동 기능은 다이어트/근육 증가 목표에서 사용할 수 있습니다.'))
+          : Padding(
+              padding: const EdgeInsets.all(12),
+              child: ExerciseLogSection(
+                uid: uid,
+                date: _todayDate,
+                nutritionService: _nutritionService,
+              ),
+            ),
       floatingActionButton: uid.isEmpty || !_supportsExercise
           ? null
           : FloatingActionButton.extended(

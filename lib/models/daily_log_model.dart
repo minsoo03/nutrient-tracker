@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class DailyLogModel {
   final String date; // Format: "2026-04-02"
   final double totalCalories;
@@ -52,44 +50,44 @@ class DailyLogModel {
     );
   }
 
-  factory DailyLogModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final data = doc.data() ?? {};
+  factory DailyLogModel.fromSupabase(Map<String, dynamic> data) {
     return DailyLogModel(
       date: data['date'] ?? '',
-      totalCalories: (data['totalCalories'] ?? 0.0).toDouble(),
-      totalCarbsG: (data['totalCarbsG'] ?? 0.0).toDouble(),
-      totalProteinG: (data['totalProteinG'] ?? 0.0).toDouble(),
-      totalFatG: (data['totalFatG'] ?? 0.0).toDouble(),
-      totalSugarG: (data['totalSugarG'] ?? 0.0).toDouble(),
-      totalFiberG: (data['totalFiberG'] ?? 0.0).toDouble(),
-      totalSodiumMg: (data['totalSodiumMg'] ?? 0.0).toDouble(),
-      totalCaffeineMg: (data['totalCaffeineMg'] ?? 0.0).toDouble(),
-      totalAlcoholG: (data['totalAlcoholG'] ?? 0.0).toDouble(),
-      totalExerciseCalories: (data['totalExerciseCalories'] ?? 0.0).toDouble(),
-      totalWaterMl: (data['totalWaterMl'] ?? 0.0).toDouble(),
-      dailyMedications: List<String>.from(data['dailyMedications'] ?? const []),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      totalCalories: (data['total_calories'] ?? 0.0).toDouble(),
+      totalCarbsG: (data['total_carbs_g'] ?? 0.0).toDouble(),
+      totalProteinG: (data['total_protein_g'] ?? 0.0).toDouble(),
+      totalFatG: (data['total_fat_g'] ?? 0.0).toDouble(),
+      totalSugarG: (data['total_sugar_g'] ?? 0.0).toDouble(),
+      totalFiberG: (data['total_fiber_g'] ?? 0.0).toDouble(),
+      totalSodiumMg: (data['total_sodium_mg'] ?? 0.0).toDouble(),
+      totalCaffeineMg: (data['total_caffeine_mg'] ?? 0.0).toDouble(),
+      totalAlcoholG: (data['total_alcohol_g'] ?? 0.0).toDouble(),
+      totalExerciseCalories: (data['total_exercise_calories'] ?? 0.0)
+          .toDouble(),
+      totalWaterMl: (data['total_water_ml'] ?? 0.0).toDouble(),
+      dailyMedications: List<String>.from(
+        data['daily_medications'] ?? const [],
+      ),
+      updatedAt: _parseDate(data['updated_at']) ?? DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toSupabase() {
     return {
       'date': date,
-      'totalCalories': totalCalories,
-      'totalCarbsG': totalCarbsG,
-      'totalProteinG': totalProteinG,
-      'totalFatG': totalFatG,
-      'totalSugarG': totalSugarG,
-      'totalFiberG': totalFiberG,
-      'totalSodiumMg': totalSodiumMg,
-      'totalCaffeineMg': totalCaffeineMg,
-      'totalAlcoholG': totalAlcoholG,
-      'totalExerciseCalories': totalExerciseCalories,
-      'totalWaterMl': totalWaterMl,
-      'dailyMedications': dailyMedications,
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'total_calories': totalCalories,
+      'total_carbs_g': totalCarbsG,
+      'total_protein_g': totalProteinG,
+      'total_fat_g': totalFatG,
+      'total_sugar_g': totalSugarG,
+      'total_fiber_g': totalFiberG,
+      'total_sodium_mg': totalSodiumMg,
+      'total_caffeine_mg': totalCaffeineMg,
+      'total_alcohol_g': totalAlcoholG,
+      'total_exercise_calories': totalExerciseCalories,
+      'total_water_ml': totalWaterMl,
+      'daily_medications': dailyMedications,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -120,10 +118,17 @@ class DailyLogModel {
       totalSodiumMg: totalSodiumMg ?? this.totalSodiumMg,
       totalCaffeineMg: totalCaffeineMg ?? this.totalCaffeineMg,
       totalAlcoholG: totalAlcoholG ?? this.totalAlcoholG,
-      totalExerciseCalories: totalExerciseCalories ?? this.totalExerciseCalories,
+      totalExerciseCalories:
+          totalExerciseCalories ?? this.totalExerciseCalories,
       totalWaterMl: totalWaterMl ?? this.totalWaterMl,
       dailyMedications: dailyMedications ?? this.dailyMedications,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }

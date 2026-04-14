@@ -14,24 +14,51 @@ class KoreanFoodService {
       'https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02';
 
   static const _apis = [
-    ('nutri',    'https://api.data.go.kr/openapi/tn_pubr_public_nutri_info_api',                                    'foodNm'),
-    ('food',     'https://api.data.go.kr/openapi/tn_pubr_public_nutri_food_info_api',                               'foodNm'),
-    ('material', 'https://api.data.go.kr/openapi/tn_pubr_public_nutri_material_info_api',                           'prdlstNm'),
-    ('process',  'https://api.data.go.kr/openapi/tn_pubr_public_nutri_process_info_api',                            'prdlstNm'),
-    ('health',   'https://api.data.go.kr/openapi/tn_pubr_public_health_functional_food_nutrition_info_api',         'hfoodNm'),
+    (
+      'nutri',
+      'https://api.data.go.kr/openapi/tn_pubr_public_nutri_info_api',
+      'foodNm',
+    ),
+    (
+      'food',
+      'https://api.data.go.kr/openapi/tn_pubr_public_nutri_food_info_api',
+      'foodNm',
+    ),
+    (
+      'material',
+      'https://api.data.go.kr/openapi/tn_pubr_public_nutri_material_info_api',
+      'prdlstNm',
+    ),
+    (
+      'process',
+      'https://api.data.go.kr/openapi/tn_pubr_public_nutri_process_info_api',
+      'prdlstNm',
+    ),
+    (
+      'health',
+      'https://api.data.go.kr/openapi/tn_pubr_public_health_functional_food_nutrition_info_api',
+      'hfoodNm',
+    ),
   ];
 
   Future<List<FoodModel>> searchKoreanFoods(String query) async {
     final key = _apiKey;
-    debugPrint('🔑 apiKey=${key.isEmpty ? "비어있음!" : "${key.substring(0, 8)}..."}');
+    debugPrint(
+      '🔑 apiKey=${key.isEmpty ? "비어있음!" : "${key.substring(0, 8)}..."}',
+    );
     if (key.isEmpty) return [];
     if (query.trim().isEmpty) return [];
 
     final futures = <Future<List<FoodModel>>>[
       _fetchMfdsFoodDb(query),
       ..._apis.map((api) {
-      final (source, url, queryParam) = api;
-      return _fetchOne(url: url, source: source, queryParam: queryParam, query: query);
+        final (source, url, queryParam) = api;
+        return _fetchOne(
+          url: url,
+          source: source,
+          queryParam: queryParam,
+          query: query,
+        );
       }),
     ];
 
@@ -42,6 +69,8 @@ class KoreanFoodService {
     final seen = <String>{};
     return all
         .where((f) => f.name.isNotEmpty)
+        .where((f) => _hasUsableNutrition(f))
+        .where((f) => _isRelevantResult(f.name, query))
         .where(
           (f) => seen.add(
             '${f.source}:${f.id}:${f.name}:${f.nutritionBasisLabel}',
@@ -58,13 +87,15 @@ class KoreanFoodService {
   }) async {
     try {
       // Uri.replace 사용 → Dart가 인코딩 자동 처리 (이중인코딩 방지)
-      final uri = Uri.parse(url).replace(queryParameters: {
-        'serviceKey': _apiKey,
-        'pageNo':     '1',
-        'numOfRows':  '20',
-        'type':       'json',
-        queryParam:   query,
-      });
+      final uri = Uri.parse(url).replace(
+        queryParameters: {
+          'serviceKey': _apiKey,
+          'pageNo': '1',
+          'numOfRows': '20',
+          'type': 'json',
+          queryParam: query,
+        },
+      );
 
       debugPrint('📡 [$source] $queryParam=$query');
 
@@ -75,12 +106,14 @@ class KoreanFoodService {
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       final header = json['response']?['header'];
-      final code   = header?['resultCode'] as String? ?? '';
-      final msg    = header?['resultMsg']  as String? ?? '';
+      final code = header?['resultCode'] as String? ?? '';
+      final msg = header?['resultMsg'] as String? ?? '';
 
       if (!code.startsWith('0')) {
         debugPrint('❌ [$source] $code $msg');
-        debugPrint('❌ [$source] 응답 전체: ${response.body.substring(0, response.body.length.clamp(0, 300))}');
+        debugPrint(
+          '❌ [$source] 응답 전체: ${response.body.substring(0, response.body.length.clamp(0, 300))}',
+        );
         return [];
       }
 
@@ -94,8 +127,13 @@ class KoreanFoodService {
       debugPrint('✅ [$source] ${items.length}개');
 
       return items
-          .map((item) => FoodModel.fromDataGovKr(item as Map<String, dynamic>, source))
+          .map(
+            (item) =>
+                FoodModel.fromDataGovKr(item as Map<String, dynamic>, source),
+          )
           .where((f) => f.name.isNotEmpty)
+          .where((f) => _hasUsableNutrition(f))
+          .where((f) => _isRelevantResult(f.name, query))
           .toList();
     } catch (e) {
       debugPrint('💥 [$source] 예외: $e');
@@ -108,13 +146,15 @@ class KoreanFoodService {
     if (key.isEmpty) return [];
 
     try {
-      final uri = Uri.parse(_mfdsFoodDbUrl).replace(queryParameters: {
-        'serviceKey': key,
-        'pageNo': '1',
-        'numOfRows': '20',
-        'type': 'json',
-        'DESC_KOR': query,
-      });
+      final uri = Uri.parse(_mfdsFoodDbUrl).replace(
+        queryParameters: {
+          'serviceKey': key,
+          'pageNo': '1',
+          'numOfRows': '20',
+          'type': 'json',
+          'DESC_KOR': query,
+        },
+      );
 
       debugPrint('📡 [mfds_food_db] DESC_KOR=$query');
 
@@ -150,10 +190,61 @@ class KoreanFoodService {
       return items
           .map((item) => FoodModel.fromMfds(item as Map<String, dynamic>))
           .where((f) => f.name.isNotEmpty)
+          .where((f) => _hasUsableNutrition(f))
+          .where((f) => _isRelevantResult(f.name, query))
           .toList();
     } catch (e) {
       debugPrint('💥 [mfds_food_db] 예외: $e');
       return [];
     }
   }
+
+  bool _hasUsableNutrition(FoodModel food) {
+    final n = food.per100g;
+    return n.calories > 0 ||
+        n.carbsG > 0 ||
+        n.proteinG > 0 ||
+        n.fatG > 0 ||
+        n.sugarG > 0 ||
+        n.fiberG > 0 ||
+        n.sodiumMg > 0 ||
+        n.caffeineMg > 0 ||
+        n.alcoholG > 0;
+  }
+
+  bool _isRelevantResult(String foodName, String query) {
+    final name = _normalizeSearchText(foodName);
+    final q = _normalizeSearchText(query);
+    if (name.isEmpty || q.isEmpty) return false;
+    if (name.contains(q) || q.contains(name)) return true;
+
+    final queryTokens = q
+        .split(' ')
+        .map((token) => token.trim())
+        .where((token) => token.length >= 2);
+    if (queryTokens.any(name.contains)) return true;
+
+    for (final group in _synonymGroups) {
+      final queryHitsGroup = group.any(q.contains);
+      if (queryHitsGroup && group.any(name.contains)) return true;
+    }
+
+    return false;
+  }
+
+  String _normalizeSearchText(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[@_]+'), ' ')
+        .replaceAll(RegExp(r'[^0-9a-z가-힣]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  static const _synonymGroups = <List<String>>[
+    ['후라이드', '프라이드', '치킨', '닭튀김', '통닭', 'friedchicken'],
+    ['양념치킨', '양념', '치킨', '닭강정'],
+    ['계란', '달걀', '에그', 'egg'],
+    ['시리얼', 'cereal', '그래놀라', 'granola'],
+  ];
 }

@@ -43,9 +43,11 @@ class FoodModel {
     double parseDouble(String key) =>
         double.tryParse(json[key]?.toString() ?? '0') ?? 0.0;
 
+    final name = cleanFoodName(json['FOOD_NM_KR']);
+
     return FoodModel(
-      id: 'mfds_${json['FOOD_CD'] ?? json['FOOD_NM_KR']}',
-      name: json['FOOD_NM_KR'] ?? '',
+      id: 'mfds_${json['FOOD_CD'] ?? name}',
+      name: name,
       source: 'kr_mfds',
       nutritionBasisLabel: '100g',
       per100g: FoodNutrition(
@@ -74,18 +76,28 @@ class FoodModel {
 
     final basisLabel =
         (json['nutConSrtrQua']?.toString().trim().isNotEmpty ?? false)
-            ? json['nutConSrtrQua'].toString().trim()
-            : '100g';
+        ? json['nutConSrtrQua'].toString().trim()
+        : '100g';
     final basisInfo = _parseAmountAndUnit(basisLabel);
-    final normalizationFactor = basisInfo != null &&
+    final normalizationFactor =
+        basisInfo != null &&
             (basisInfo.$2 == 'g' || basisInfo.$2 == 'ml') &&
             basisInfo.$1 > 0
         ? 100.0 / basisInfo.$1
         : 1.0;
     final packageInfo = _parseAmountAndUnit(json['foodSize']?.toString());
 
-    final name = (json['foodNm'] ?? json['prdlstNm'] ?? json['hfoodNm'] ?? '').toString();
-    final code = (json['foodCd'] ?? json['prdlstReportNo'] ?? json['hfoodCd'] ?? name).toString();
+    final name = cleanFoodName(
+      json['foodNm'] ??
+          json['prdlstNm'] ??
+          json['hfoodNm'] ??
+          json['FOOD_NM'] ??
+          json['PRDLST_NM'] ??
+          json['HFOOD_NM'],
+    );
+    final code =
+        (json['foodCd'] ?? json['prdlstReportNo'] ?? json['hfoodCd'] ?? name)
+            .toString();
     final caffeineValue = pickValue(['caffn', 'caffeine']);
     final fallbackCaffeine = _fallbackCaffeinePer100(name);
 
@@ -97,15 +109,30 @@ class FoodModel {
       packageAmount: packageInfo?.$1,
       packageUnit: packageInfo?.$2,
       per100g: FoodNutrition(
-        calories: pickValue(['enerc', 'calorie', 'amtNum1']) * normalizationFactor,
-        carbsG: pickValue(['chocdf', 'carbs', 'amtNum6']) * normalizationFactor,
-        proteinG: pickValue(['prot', 'protein', 'amtNum3']) * normalizationFactor,
-        fatG: pickValue(['fatce', 'fat', 'amtNum4']) * normalizationFactor,
-        sugarG: pickValue(['sugar', 'amtNum7']) * normalizationFactor,
-        fiberG: pickValue(['fibtg', 'dietaryFiber', 'amtNum8']) * normalizationFactor,
-        sodiumMg: pickValue(['nat', 'sodium', 'amtNum13']) * normalizationFactor,
-        caffeineMg: (caffeineValue > 0 ? caffeineValue : fallbackCaffeine) * normalizationFactor,
-        alcoholG: pickValue(['alcohol', 'alc', 'alcoholG']) * normalizationFactor,
+        calories:
+            pickValue(['enerc', 'ENERC', 'calorie', 'CALORIE', 'amtNum1']) *
+            normalizationFactor,
+        carbsG:
+            pickValue(['chocdf', 'CHOCDF', 'carbs', 'CARBS', 'amtNum6']) *
+            normalizationFactor,
+        proteinG:
+            pickValue(['prot', 'PROT', 'protein', 'PROTEIN', 'amtNum3']) *
+            normalizationFactor,
+        fatG:
+            pickValue(['fatce', 'FATCE', 'fat', 'FAT', 'amtNum4']) *
+            normalizationFactor,
+        sugarG: pickValue(['sugar', 'SUGAR', 'amtNum7']) * normalizationFactor,
+        fiberG:
+            pickValue(['fibtg', 'FIBTG', 'dietaryFiber', 'amtNum8']) *
+            normalizationFactor,
+        sodiumMg:
+            pickValue(['nat', 'NAT', 'sodium', 'SODIUM', 'amtNum13']) *
+            normalizationFactor,
+        caffeineMg:
+            (caffeineValue > 0 ? caffeineValue : fallbackCaffeine) *
+            normalizationFactor,
+        alcoholG:
+            pickValue(['alcohol', 'alc', 'alcoholG']) * normalizationFactor,
       ),
     );
   }
@@ -123,7 +150,7 @@ class FoodModel {
 
     return FoodModel(
       id: 'usda_${json['fdcId']}',
-      name: json['description'] ?? '',
+      name: cleanFoodName(json['description']),
       nameEn: json['description'],
       source: 'usda',
       nutritionBasisLabel: '100g',
@@ -153,17 +180,33 @@ class FoodModel {
     return (amount, unit);
   }
 
+  static String cleanFoodName(dynamic raw) {
+    final text = (raw ?? '').toString().trim();
+    if (text.isEmpty) return '';
+    return text
+        .replaceAll(RegExp(r'[@]+'), ' ')
+        .replaceAll(RegExp(r'[_]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   static double _fallbackCaffeinePer100(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('에너지드링크') || lower.contains('energy drink') ||
-        lower.contains('energydrink') || lower.contains('monster') ||
-        lower.contains('red bull') || lower.contains('redbull') ||
+    if (lower.contains('에너지드링크') ||
+        lower.contains('energy drink') ||
+        lower.contains('energydrink') ||
+        lower.contains('monster') ||
+        lower.contains('red bull') ||
+        lower.contains('redbull') ||
         lower.contains('핫식스')) {
       return 30.0;
     }
-    if (lower.contains('콜라') || lower.contains('cola') ||
-        lower.contains('coke') || lower.contains('코카콜라') ||
-        lower.contains('펩시') || lower.contains('pepsi')) {
+    if (lower.contains('콜라') ||
+        lower.contains('cola') ||
+        lower.contains('coke') ||
+        lower.contains('코카콜라') ||
+        lower.contains('펩시') ||
+        lower.contains('pepsi')) {
       return 10.0;
     }
     return 0.0;

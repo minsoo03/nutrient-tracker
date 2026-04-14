@@ -1,50 +1,44 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nutrient_tracker/models/daily_log_model.dart';
 import 'package:nutrient_tracker/models/exercise_entry_model.dart';
 import 'package:nutrient_tracker/models/food_entry_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NutritionService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  CollectionReference<Map<String, dynamic>> _logsCol(String uid) =>
-      _firestore.collection('users').doc(uid).collection('daily_logs');
-
-  CollectionReference<Map<String, dynamic>> _entriesCol(
-    String uid,
-    String date,
-  ) => _logsCol(uid).doc(date).collection('entries');
-
-  CollectionReference<Map<String, dynamic>> _exercisesCol(
-    String uid,
-    String date,
-  ) => _logsCol(uid).doc(date).collection('exercises');
+  final SupabaseClient _client = Supabase.instance.client;
 
   /// Retrieve daily log for a specific date.
   Future<DailyLogModel> getDailyLog(String uid, String date) async {
-    final doc = await _logsCol(uid).doc(date).get();
-    if (doc.exists) {
-      return DailyLogModel.fromFirestore(doc);
-    }
-    return DailyLogModel.empty(date);
+    final row = await _client
+        .from('daily_logs')
+        .select()
+        .eq('user_id', uid)
+        .eq('date', date)
+        .maybeSingle();
+
+    if (row == null) return DailyLogModel.empty(date);
+    return DailyLogModel.fromSupabase(row);
   }
 
   /// Save or update daily log totals.
   Future<void> saveDailyLog(String uid, DailyLogModel log) async {
-    await _logsCol(uid).doc(log.date).set(
-          log.toFirestore(),
-          SetOptions(merge: true),
-        );
+    await _client.from('daily_logs').upsert({
+      ...log.toSupabase(),
+      'user_id': uid,
+    }, onConflict: 'user_id,date');
   }
 
   /// Watch daily log changes in real-time.
   Stream<DailyLogModel> watchDailyLog(String uid, String date) {
-    return _logsCol(uid).doc(date).snapshots().map((doc) {
-      if (doc.exists) {
-        return DailyLogModel.fromFirestore(doc);
-      }
-      return DailyLogModel.empty(date);
-    });
+    return _client
+        .from('daily_logs')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', uid)
+        .map((rows) {
+          final matches = rows.where((row) => row['date'] == date);
+          if (matches.isEmpty) return DailyLogModel.empty(date);
+          return DailyLogModel.fromSupabase(matches.first);
+        });
   }
 
   Future<void> saveDailyMedications(
@@ -52,28 +46,90 @@ class NutritionService {
     String date,
     List<String> medications,
   ) async {
-    await _logsCol(uid).doc(date).set(
-      {
-        'date': date,
-        'dailyMedications': medications,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      },
-      SetOptions(merge: true),
+    final currentLog = await getDailyLog(uid, date);
+    await saveDailyLog(
+      uid,
+      currentLog.copyWith(
+        date: date,
+        dailyMedications: medications,
+        updatedAt: DateTime.now(),
+      ),
     );
   }
 
-  /// Add a food entry and recalculate daily totals.
+  /// Rebuild a daily aggregate from child entries.
+  Future<void> rebuildDailyLogTotals(String uid, String date) async {
+    final currentLog = await getDailyLog(uid, date);
+    final foodRows = await _client
+        .from('food_entries')
+        .select()
+        .eq('user_id', uid)
+        .eq('log_date', date);
+    final exerciseRows = await _client
+        .from('exercise_entries')
+        .select()
+        .eq('user_id', uid)
+        .eq('log_date', date);
+
+    var totalCalories = 0.0;
+    var totalCarbsG = 0.0;
+    var totalProteinG = 0.0;
+    var totalFatG = 0.0;
+    var totalSugarG = 0.0;
+    var totalFiberG = 0.0;
+    var totalSodiumMg = 0.0;
+    var totalCaffeineMg = 0.0;
+    var totalAlcoholG = 0.0;
+
+    for (final row in foodRows) {
+      final entry = FoodEntryModel.fromSupabase(row);
+      totalCalories += entry.calories;
+      totalCarbsG += entry.carbsG;
+      totalProteinG += entry.proteinG;
+      totalFatG += entry.fatG;
+      totalSugarG += entry.sugarG;
+      totalFiberG += entry.fiberG;
+      totalSodiumMg += entry.sodiumMg;
+      totalCaffeineMg += entry.caffeineMg;
+      totalAlcoholG += entry.alcoholG;
+    }
+
+    var totalExerciseCalories = 0.0;
+    for (final row in exerciseRows) {
+      totalExerciseCalories += ExerciseEntryModel.fromSupabase(
+        row,
+      ).burnedCalories;
+    }
+
+    await saveDailyLog(
+      uid,
+      currentLog.copyWith(
+        date: date,
+        totalCalories: totalCalories,
+        totalCarbsG: totalCarbsG,
+        totalProteinG: totalProteinG,
+        totalFatG: totalFatG,
+        totalSugarG: totalSugarG,
+        totalFiberG: totalFiberG,
+        totalSodiumMg: totalSodiumMg,
+        totalCaffeineMg: totalCaffeineMg,
+        totalAlcoholG: totalAlcoholG,
+        totalExerciseCalories: totalExerciseCalories,
+        updatedAt: DateTime.now(),
+      ),
+    );
+  }
+
   Future<void> addFoodEntry(
     String uid,
     String date,
     FoodEntryModel entry,
   ) async {
     try {
-      final batch = _firestore.batch();
-      final entryRef = _entriesCol(uid, date).doc();
-      batch.set(entryRef, entry.toFirestore());
-      _applyFoodDelta(batch, uid, date, entry, 1);
-      await batch.commit();
+      await _client
+          .from('food_entries')
+          .insert(entry.toSupabase(uid: uid, date: date));
+      await rebuildDailyLogTotals(uid, date);
     } catch (e, st) {
       debugPrint('❌ addFoodEntry 실패: uid=$uid, date=$date, error=$e');
       debugPrintStack(stackTrace: st);
@@ -81,31 +137,25 @@ class NutritionService {
     }
   }
 
-  /// Delete a food entry and recalculate daily totals.
-  Future<void> deleteFoodEntry(
-    String uid,
-    String date,
-    String entryId,
-  ) async {
-    final entryRef = _entriesCol(uid, date).doc(entryId);
-    final doc = await entryRef.get();
-    if (!doc.exists) return;
-
-    final entry = FoodEntryModel.fromFirestore(doc);
-    final batch = _firestore.batch();
-    batch.delete(entryRef);
-    _applyFoodDelta(batch, uid, date, entry, -1);
-    await batch.commit();
+  Future<void> deleteFoodEntry(String uid, String date, String entryId) async {
+    await _client
+        .from('food_entries')
+        .delete()
+        .eq('user_id', uid)
+        .eq('id', entryId);
+    await rebuildDailyLogTotals(uid, date);
   }
 
-  /// Watch food entries for a specific date.
   Stream<List<FoodEntryModel>> watchEntries(String uid, String date) {
-    return _entriesCol(uid, date)
-        .orderBy('logged_at', descending: false)
-        .snapshots()
+    return _client
+        .from('food_entries')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', uid)
+        .order('logged_at')
         .map(
-          (snap) => snap.docs
-              .map(FoodEntryModel.fromFirestore)
+          (rows) => rows
+              .where((row) => row['log_date'] == date)
+              .map(FoodEntryModel.fromSupabase)
               .toList(),
         );
   }
@@ -116,11 +166,10 @@ class NutritionService {
     ExerciseEntryModel entry,
   ) async {
     try {
-      final batch = _firestore.batch();
-      final entryRef = _exercisesCol(uid, date).doc();
-      batch.set(entryRef, entry.toFirestore());
-      _applyExerciseDelta(batch, uid, date, entry.burnedCalories);
-      await batch.commit();
+      await _client
+          .from('exercise_entries')
+          .insert(entry.toSupabase(uid: uid, date: date));
+      await rebuildDailyLogTotals(uid, date);
     } catch (e, st) {
       debugPrint('❌ addExerciseEntry 실패: uid=$uid, date=$date, error=$e');
       debugPrintStack(stackTrace: st);
@@ -133,69 +182,28 @@ class NutritionService {
     String date,
     String entryId,
   ) async {
-    final entryRef = _exercisesCol(uid, date).doc(entryId);
-    final doc = await entryRef.get();
-    if (!doc.exists) return;
-
-    final entry = ExerciseEntryModel.fromFirestore(doc);
-    final batch = _firestore.batch();
-    batch.delete(entryRef);
-    _applyExerciseDelta(batch, uid, date, -entry.burnedCalories);
-    await batch.commit();
+    await _client
+        .from('exercise_entries')
+        .delete()
+        .eq('user_id', uid)
+        .eq('id', entryId);
+    await rebuildDailyLogTotals(uid, date);
   }
 
-  Stream<List<ExerciseEntryModel>> watchExerciseEntries(String uid, String date) {
-    return _exercisesCol(uid, date)
-        .orderBy('logged_at', descending: false)
-        .snapshots()
+  Stream<List<ExerciseEntryModel>> watchExerciseEntries(
+    String uid,
+    String date,
+  ) {
+    return _client
+        .from('exercise_entries')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', uid)
+        .order('logged_at')
         .map(
-          (snap) => snap.docs
-              .map(ExerciseEntryModel.fromFirestore)
+          (rows) => rows
+              .where((row) => row['log_date'] == date)
+              .map(ExerciseEntryModel.fromSupabase)
               .toList(),
         );
-  }
-
-  void _applyFoodDelta(
-    WriteBatch batch,
-    String uid,
-    String date,
-    FoodEntryModel entry,
-    int direction,
-  ) {
-    final multiplier = direction.toDouble();
-    batch.set(
-      _logsCol(uid).doc(date),
-      {
-        'date': date,
-        'totalCalories': FieldValue.increment(entry.calories * multiplier),
-        'totalCarbsG': FieldValue.increment(entry.carbsG * multiplier),
-        'totalProteinG': FieldValue.increment(entry.proteinG * multiplier),
-        'totalFatG': FieldValue.increment(entry.fatG * multiplier),
-        'totalSugarG': FieldValue.increment(entry.sugarG * multiplier),
-        'totalFiberG': FieldValue.increment(entry.fiberG * multiplier),
-        'totalSodiumMg': FieldValue.increment(entry.sodiumMg * multiplier),
-        'totalCaffeineMg': FieldValue.increment(entry.caffeineMg * multiplier),
-        'totalAlcoholG': FieldValue.increment(entry.alcoholG * multiplier),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
-  void _applyExerciseDelta(
-    WriteBatch batch,
-    String uid,
-    String date,
-    double burnedCaloriesDelta,
-  ) {
-    batch.set(
-      _logsCol(uid).doc(date),
-      {
-        'date': date,
-        'totalExerciseCalories': FieldValue.increment(burnedCaloriesDelta),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      },
-      SetOptions(merge: true),
-    );
   }
 }

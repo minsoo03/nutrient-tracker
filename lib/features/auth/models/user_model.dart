@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum Gender { male, female, other }
 
 enum HealthGoal { diet, muscle, health, medical }
@@ -43,33 +41,27 @@ class UserModel {
     required this.createdAt,
   });
 
-  factory UserModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final d = doc.data()!;
-    final createdAt =
-        (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+  factory UserModel.fromSupabase(Map<String, dynamic> d) {
+    final createdAt = _parseDate(d['created_at']) ?? DateTime.now();
     final genderName = d['gender'] as String? ?? Gender.other.name;
     final goalName = d['goal'] as String? ?? HealthGoal.health.name;
     return UserModel(
-      uid: doc.id,
+      uid: d['id'] as String? ?? d['uid'] as String? ?? '',
       name: d['name'] as String? ?? '',
       age: (d['age'] as num?)?.toInt() ?? 0,
       gender: _parseGender(genderName),
-      heightCm: (d['heightCm'] as num?)?.toDouble() ?? 0,
-      weightKg: (d['weightKg'] as num?)?.toDouble() ?? 0,
+      heightCm: (d['height_cm'] as num?)?.toDouble() ?? 0,
+      weightKg: (d['weight_kg'] as num?)?.toDouble() ?? 0,
       goal: _parseGoal(goalName),
-      dailyCalorieTarget: (d['dailyCalorieTarget'] as num?)?.toInt() ?? 2000,
-      dailyProteinTarget: (d['dailyProteinTarget'] as num?)?.toInt() ?? 60,
-      dailyCarbsTarget: (d['dailyCarbsTarget'] as num?)?.toInt() ?? 250,
-      dailyFatTarget: (d['dailyFatTarget'] as num?)?.toInt() ?? 65,
-      dailySodiumTarget: (d['dailySodiumTarget'] as num?)?.toInt() ?? 2300,
-      hasKidneyDisease: d['hasKidneyDisease'] as bool? ?? false,
-      hasLiverDisease: d['hasLiverDisease'] as bool? ?? false,
+      dailyCalorieTarget: (d['daily_calorie_target'] as num?)?.toInt() ?? 2000,
+      dailyProteinTarget: (d['daily_protein_target'] as num?)?.toInt() ?? 60,
+      dailyCarbsTarget: (d['daily_carbs_target'] as num?)?.toInt() ?? 250,
+      dailyFatTarget: (d['daily_fat_target'] as num?)?.toInt() ?? 65,
+      dailySodiumTarget: (d['daily_sodium_target'] as num?)?.toInt() ?? 2300,
+      hasKidneyDisease: d['has_kidney_disease'] as bool? ?? false,
+      hasLiverDisease: d['has_liver_disease'] as bool? ?? false,
       medications: List<String>.from(d['medications'] ?? const []),
-      lastWeightUpdatedAt:
-          (d['lastWeightUpdatedAt'] as Timestamp?)?.toDate() ??
-          createdAt,
+      lastWeightUpdatedAt: _parseDate(d['last_weight_updated_at']) ?? createdAt,
       createdAt: createdAt,
     );
   }
@@ -88,35 +80,52 @@ class UserModel {
     return HealthGoal.health;
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toSupabase() {
     return {
-      'uid': uid,
+      'id': uid,
       'name': name,
       'age': age,
       'gender': gender.name,
-      'heightCm': heightCm,
-      'weightKg': weightKg,
+      'height_cm': heightCm,
+      'weight_kg': weightKg,
       'goal': goal.name,
-      'dailyCalorieTarget': dailyCalorieTarget,
-      'dailyProteinTarget': dailyProteinTarget,
-      'dailyCarbsTarget': dailyCarbsTarget,
-      'dailyFatTarget': dailyFatTarget,
-      'dailySodiumTarget': dailySodiumTarget,
-      'hasKidneyDisease': hasKidneyDisease,
-      'hasLiverDisease': hasLiverDisease,
+      'daily_calorie_target': dailyCalorieTarget,
+      'daily_protein_target': dailyProteinTarget,
+      'daily_carbs_target': dailyCarbsTarget,
+      'daily_fat_target': dailyFatTarget,
+      'daily_sodium_target': dailySodiumTarget,
+      'has_kidney_disease': hasKidneyDisease,
+      'has_liver_disease': hasLiverDisease,
       'medications': medications,
-      'lastWeightUpdatedAt': Timestamp.fromDate(lastWeightUpdatedAt),
-      'createdAt': Timestamp.fromDate(createdAt),
+      'last_weight_updated_at': lastWeightUpdatedAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
+
   UserModel copyWith({
-    String? uid, String? name, int? age, Gender? gender,
-    double? heightCm, double? weightKg, HealthGoal? goal,
-    int? dailyCalorieTarget, int? dailyProteinTarget,
-    int? dailyCarbsTarget, int? dailyFatTarget, int? dailySodiumTarget,
-    bool? hasKidneyDisease, bool? hasLiverDisease,
-    List<String>? medications, DateTime? lastWeightUpdatedAt, DateTime? createdAt,
+    String? uid,
+    String? name,
+    int? age,
+    Gender? gender,
+    double? heightCm,
+    double? weightKg,
+    HealthGoal? goal,
+    int? dailyCalorieTarget,
+    int? dailyProteinTarget,
+    int? dailyCarbsTarget,
+    int? dailyFatTarget,
+    int? dailySodiumTarget,
+    bool? hasKidneyDisease,
+    bool? hasLiverDisease,
+    List<String>? medications,
+    DateTime? lastWeightUpdatedAt,
+    DateTime? createdAt,
   }) {
     return UserModel(
       uid: uid ?? this.uid,

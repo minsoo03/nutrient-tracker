@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     if (uid.isEmpty) return;
     final profile = await _auth.getUserProfile(uid);
     if (mounted) setState(() => _userProfile = profile);
@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = _auth.currentUser?.uid ?? '';
+    final uid = _auth.currentUser?.id ?? '';
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -131,11 +131,11 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: uid.isEmpty
                 ? null
                 : () => showManualFoodEntryDialog(
-                      context: context,
-                      uid: uid,
-                      date: _todayDate,
-                      nutritionService: _nutritionService,
-                    ),
+                    context: context,
+                    uid: uid,
+                    date: _todayDate,
+                    nutritionService: _nutritionService,
+                  ),
             backgroundColor: AppColors.secondary,
             icon: const Icon(Icons.edit_note),
             label: const Text('직접 입력'),

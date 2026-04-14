@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class ExerciseEntryModel {
   final String? id;
   final String exerciseName;
@@ -15,25 +13,30 @@ class ExerciseEntryModel {
     required this.loggedAt,
   });
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toSupabase({required String uid, required String date}) {
     return {
+      'user_id': uid,
+      'log_date': date,
       'exercise_name': exerciseName,
       'duration_minutes': durationMinutes,
       'burned_calories': burnedCalories,
-      'logged_at': Timestamp.fromDate(loggedAt),
+      'logged_at': loggedAt.toIso8601String(),
     };
   }
 
-  factory ExerciseEntryModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final d = doc.data() ?? {};
+  factory ExerciseEntryModel.fromSupabase(Map<String, dynamic> d) {
     return ExerciseEntryModel(
-      id: doc.id,
+      id: d['id']?.toString(),
       exerciseName: d['exercise_name'] ?? '',
       durationMinutes: (d['duration_minutes'] ?? 0.0).toDouble(),
       burnedCalories: (d['burned_calories'] ?? 0.0).toDouble(),
-      loggedAt: (d['logged_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      loggedAt: _parseDate(d['logged_at']) ?? DateTime.now(),
     );
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }
