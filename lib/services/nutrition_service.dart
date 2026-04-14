@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class NutritionService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  /// Retrieve daily log for a specific date.
   Future<DailyLogModel> getDailyLog(String uid, String date) async {
     final row = await _client
         .from('daily_logs')
@@ -20,7 +19,6 @@ class NutritionService {
     return DailyLogModel.fromSupabase(row);
   }
 
-  /// Save or update daily log totals.
   Future<void> saveDailyLog(String uid, DailyLogModel log) async {
     await _client.from('daily_logs').upsert({
       ...log.toSupabase(),
@@ -28,17 +26,11 @@ class NutritionService {
     }, onConflict: 'user_id,date');
   }
 
-  /// Watch daily log changes in real-time.
-  Stream<DailyLogModel> watchDailyLog(String uid, String date) {
-    return _client
-        .from('daily_logs')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', uid)
-        .map((rows) {
-          final matches = rows.where((row) => row['date'] == date);
-          if (matches.isEmpty) return DailyLogModel.empty(date);
-          return DailyLogModel.fromSupabase(matches.first);
-        });
+  Stream<DailyLogModel> watchDailyLog(String uid, String date) async* {
+    yield await getDailyLog(uid, date);
+    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+      yield await getDailyLog(uid, date);
+    }
   }
 
   Future<void> saveDailyMedications(
@@ -57,7 +49,6 @@ class NutritionService {
     );
   }
 
-  /// Rebuild a daily aggregate from child entries.
   Future<void> rebuildDailyLogTotals(String uid, String date) async {
     final currentLog = await getDailyLog(uid, date);
     final foodRows = await _client
@@ -71,15 +62,9 @@ class NutritionService {
         .eq('user_id', uid)
         .eq('log_date', date);
 
-    var totalCalories = 0.0;
-    var totalCarbsG = 0.0;
-    var totalProteinG = 0.0;
-    var totalFatG = 0.0;
-    var totalSugarG = 0.0;
-    var totalFiberG = 0.0;
-    var totalSodiumMg = 0.0;
-    var totalCaffeineMg = 0.0;
-    var totalAlcoholG = 0.0;
+    var totalCalories = 0.0, totalCarbsG = 0.0, totalProteinG = 0.0;
+    var totalFatG = 0.0, totalSugarG = 0.0, totalFiberG = 0.0;
+    var totalSodiumMg = 0.0, totalCaffeineMg = 0.0, totalAlcoholG = 0.0;
 
     for (final row in foodRows) {
       final entry = FoodEntryModel.fromSupabase(row);
@@ -96,9 +81,7 @@ class NutritionService {
 
     var totalExerciseCalories = 0.0;
     for (final row in exerciseRows) {
-      totalExerciseCalories += ExerciseEntryModel.fromSupabase(
-        row,
-      ).burnedCalories;
+      totalExerciseCalories += ExerciseEntryModel.fromSupabase(row).burnedCalories;
     }
 
     await saveDailyLog(
@@ -138,26 +121,25 @@ class NutritionService {
   }
 
   Future<void> deleteFoodEntry(String uid, String date, String entryId) async {
-    await _client
-        .from('food_entries')
-        .delete()
-        .eq('user_id', uid)
-        .eq('id', entryId);
+    await _client.from('food_entries').delete().eq('user_id', uid).eq('id', entryId);
     await rebuildDailyLogTotals(uid, date);
   }
 
-  Stream<List<FoodEntryModel>> watchEntries(String uid, String date) {
-    return _client
+  Future<List<FoodEntryModel>> getEntries(String uid, String date) async {
+    final rows = await _client
         .from('food_entries')
-        .stream(primaryKey: ['id'])
+        .select()
         .eq('user_id', uid)
-        .order('logged_at')
-        .map(
-          (rows) => rows
-              .where((row) => row['log_date'] == date)
-              .map(FoodEntryModel.fromSupabase)
-              .toList(),
-        );
+        .eq('log_date', date)
+        .order('logged_at');
+    return rows.map(FoodEntryModel.fromSupabase).toList();
+  }
+
+  Stream<List<FoodEntryModel>> watchEntries(String uid, String date) async* {
+    yield await getEntries(uid, date);
+    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+      yield await getEntries(uid, date);
+    }
   }
 
   Future<void> addExerciseEntry(
@@ -190,20 +172,26 @@ class NutritionService {
     await rebuildDailyLogTotals(uid, date);
   }
 
+  Future<List<ExerciseEntryModel>> getExerciseEntries(
+    String uid,
+    String date,
+  ) async {
+    final rows = await _client
+        .from('exercise_entries')
+        .select()
+        .eq('user_id', uid)
+        .eq('log_date', date)
+        .order('logged_at');
+    return rows.map(ExerciseEntryModel.fromSupabase).toList();
+  }
+
   Stream<List<ExerciseEntryModel>> watchExerciseEntries(
     String uid,
     String date,
-  ) {
-    return _client
-        .from('exercise_entries')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', uid)
-        .order('logged_at')
-        .map(
-          (rows) => rows
-              .where((row) => row['log_date'] == date)
-              .map(ExerciseEntryModel.fromSupabase)
-              .toList(),
-        );
+  ) async* {
+    yield await getExerciseEntries(uid, date);
+    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+      yield await getExerciseEntries(uid, date);
+    }
   }
 }

@@ -4,8 +4,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:nutrient_tracker/models/food_model.dart';
 
-/// 공공데이터포털 한국 식품 영양성분 통합 검색 (5개 API 병렬 호출)
-/// (source, endpoint, 검색파라미터명)
 class KoreanFoodService {
   static String get _apiKey => (dotenv.env['DATA_API_KEY'] ?? '').trim();
   static String get _mfdsApiKey =>
@@ -70,12 +68,7 @@ class KoreanFoodService {
     return all
         .where((f) => f.name.isNotEmpty)
         .where((f) => _hasUsableNutrition(f))
-        .where((f) => _isRelevantResult(f.name, query))
-        .where(
-          (f) => seen.add(
-            '${f.source}:${f.id}:${f.name}:${f.nutritionBasisLabel}',
-          ),
-        )
+        .where((f) => seen.add('${f.source}:${f.id}:${f.name}:${f.nutritionBasisLabel}'))
         .toList();
   }
 
@@ -97,34 +90,17 @@ class KoreanFoodService {
         },
       );
 
-      debugPrint('📡 [$source] $queryParam=$query');
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-      debugPrint('📡 [$source] status=${response.statusCode}');
-
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return [];
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final header = json['response']?['header'];
-      final code = header?['resultCode'] as String? ?? '';
-      final msg = header?['resultMsg'] as String? ?? '';
-
-      if (!code.startsWith('0')) {
-        debugPrint('❌ [$source] $code $msg');
-        debugPrint(
-          '❌ [$source] 응답 전체: ${response.body.substring(0, response.body.length.clamp(0, 300))}',
-        );
-        return [];
-      }
+      final code = json['response']?['header']?['resultCode'] as String? ?? '';
+      if (!code.startsWith('0')) return [];
 
       final rawItems = json['response']?['body']?['items'];
-      if (rawItems == null) {
-        debugPrint('⚠️  [$source] 결과 없음');
-        return [];
-      }
+      if (rawItems == null) return [];
 
       final List<dynamic> items = rawItems is List ? rawItems : [rawItems];
-      debugPrint('✅ [$source] ${items.length}개');
 
       return items
           .map(
@@ -133,7 +109,6 @@ class KoreanFoodService {
           )
           .where((f) => f.name.isNotEmpty)
           .where((f) => _hasUsableNutrition(f))
-          .where((f) => _isRelevantResult(f.name, query))
           .toList();
     } catch (e) {
       debugPrint('💥 [$source] 예외: $e');
@@ -156,42 +131,25 @@ class KoreanFoodService {
         },
       );
 
-      debugPrint('📡 [mfds_food_db] DESC_KOR=$query');
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-      debugPrint('📡 [mfds_food_db] status=${response.statusCode}');
-
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return [];
-      if (response.body.trim().toLowerCase() == 'unauthorized') {
-        debugPrint('❌ [mfds_food_db] Unauthorized');
-        return [];
-      }
+      if (response.body.trim().toLowerCase() == 'unauthorized') return [];
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       final header = json['header'] ?? json['response']?['header'];
       final code = header?['resultCode'] as String? ?? '';
-      final msg = header?['resultMsg'] as String? ?? '';
-
-      if (code.isNotEmpty && !code.startsWith('0')) {
-        debugPrint('❌ [mfds_food_db] $code $msg');
-        return [];
-      }
+      if (code.isNotEmpty && !code.startsWith('0')) return [];
 
       final body = json['body'] ?? json['response']?['body'];
       final rawItems = body?['items'] ?? body?['item'];
-      if (rawItems == null) {
-        debugPrint('⚠️  [mfds_food_db] 결과 없음');
-        return [];
-      }
+      if (rawItems == null) return [];
 
       final List<dynamic> items = rawItems is List ? rawItems : [rawItems];
-      debugPrint('✅ [mfds_food_db] ${items.length}개');
 
       return items
           .map((item) => FoodModel.fromMfds(item as Map<String, dynamic>))
           .where((f) => f.name.isNotEmpty)
           .where((f) => _hasUsableNutrition(f))
-          .where((f) => _isRelevantResult(f.name, query))
           .toList();
     } catch (e) {
       debugPrint('💥 [mfds_food_db] 예외: $e');
@@ -199,52 +157,9 @@ class KoreanFoodService {
     }
   }
 
-  bool _hasUsableNutrition(FoodModel food) {
-    final n = food.per100g;
-    return n.calories > 0 ||
-        n.carbsG > 0 ||
-        n.proteinG > 0 ||
-        n.fatG > 0 ||
-        n.sugarG > 0 ||
-        n.fiberG > 0 ||
-        n.sodiumMg > 0 ||
-        n.caffeineMg > 0 ||
-        n.alcoholG > 0;
+  bool _hasUsableNutrition(FoodModel f) {
+    final n = f.per100g;
+    return n.calories > 0 || n.carbsG > 0 || n.proteinG > 0 || n.fatG > 0 ||
+        n.sugarG > 0 || n.fiberG > 0 || n.sodiumMg > 0 || n.caffeineMg > 0 || n.alcoholG > 0;
   }
-
-  bool _isRelevantResult(String foodName, String query) {
-    final name = _normalizeSearchText(foodName);
-    final q = _normalizeSearchText(query);
-    if (name.isEmpty || q.isEmpty) return false;
-    if (name.contains(q) || q.contains(name)) return true;
-
-    final queryTokens = q
-        .split(' ')
-        .map((token) => token.trim())
-        .where((token) => token.length >= 2);
-    if (queryTokens.any(name.contains)) return true;
-
-    for (final group in _synonymGroups) {
-      final queryHitsGroup = group.any(q.contains);
-      if (queryHitsGroup && group.any(name.contains)) return true;
-    }
-
-    return false;
-  }
-
-  String _normalizeSearchText(String value) {
-    return value
-        .toLowerCase()
-        .replaceAll(RegExp(r'[@_]+'), ' ')
-        .replaceAll(RegExp(r'[^0-9a-z가-힣]+'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  static const _synonymGroups = <List<String>>[
-    ['후라이드', '프라이드', '치킨', '닭튀김', '통닭', 'friedchicken'],
-    ['양념치킨', '양념', '치킨', '닭강정'],
-    ['계란', '달걀', '에그', 'egg'],
-    ['시리얼', 'cereal', '그래놀라', 'granola'],
-  ];
 }
