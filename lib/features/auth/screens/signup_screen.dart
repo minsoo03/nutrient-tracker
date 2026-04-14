@@ -65,10 +65,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final authService = AuthService();
-      await authService.signUpWithEmail(email, password);
+      final response = await authService.signUpWithEmail(email, password);
+      final userId = response.user?.id;
 
       if (mounted) {
-        context.go('/profile-setup');
+        context.go('/profile-setup', extra: userId);
       }
     } catch (e) {
       setState(() {

@@ -8,7 +8,10 @@ import 'package:nutrient_tracker/services/medicine_service.dart';
 import 'package:nutrient_tracker/services/nutrition_calculator.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  /// signup 직후 세션이 없을 때를 대비해 userId를 직접 전달받음
+  final String? userId;
+
+  const ProfileSetupScreen({super.key, this.userId});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -41,13 +44,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   void _nextPage() {
     _pageCtrl.nextPage(
-        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
     setState(() => _step++);
   }
 
   void _prevPage() {
     _pageCtrl.previousPage(
-        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
     setState(() => _step--);
   }
 
@@ -68,8 +75,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => _isLoading = true);
     try {
       final auth = AuthService();
-      final user = auth.currentUser;
-      if (user == null) throw Exception('로그인이 필요합니다');
+      // signup 직후 이메일 미인증 상태에서는 currentUser가 null일 수 있으므로
+      // 라우트로 전달받은 userId를 우선 사용
+      final uid = widget.userId ?? auth.currentUser?.id;
+      if (uid == null || uid.isEmpty) throw Exception('로그인이 필요합니다');
 
       final targets = NutritionCalculator.calculate(
         age: int.parse(_ageCtrl.text),
@@ -81,25 +90,27 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         hasLiverDisease: _hasLiver,
       );
 
-      await auth.saveUserProfile(UserModel(
-        uid: user.uid,
-        name: _nameCtrl.text.trim(),
-        age: int.parse(_ageCtrl.text),
-        gender: _gender,
-        heightCm: double.parse(_heightCtrl.text),
-        weightKg: double.parse(_weightCtrl.text),
-        goal: _goal,
-        dailyCalorieTarget: targets.calories,
-        dailyProteinTarget: targets.proteinG,
-        dailyCarbsTarget: targets.carbsG,
-        dailyFatTarget: targets.fatG,
-        dailySodiumTarget: targets.sodiumMg,
-        hasKidneyDisease: _hasKidney,
-        hasLiverDisease: _hasLiver,
-        medications: _medications,
-        lastWeightUpdatedAt: DateTime.now(),
-        createdAt: DateTime.now(),
-      ));
+      await auth.saveUserProfile(
+        UserModel(
+          uid: uid,
+          name: _nameCtrl.text.trim(),
+          age: int.parse(_ageCtrl.text),
+          gender: _gender,
+          heightCm: double.parse(_heightCtrl.text),
+          weightKg: double.parse(_weightCtrl.text),
+          goal: _goal,
+          dailyCalorieTarget: targets.calories,
+          dailyProteinTarget: targets.proteinG,
+          dailyCarbsTarget: targets.carbsG,
+          dailyFatTarget: targets.fatG,
+          dailySodiumTarget: targets.sodiumMg,
+          hasKidneyDisease: _hasKidney,
+          hasLiverDisease: _hasLiver,
+          medications: _medications,
+          lastWeightUpdatedAt: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
 
       if (mounted) context.go('/home');
     } catch (e) {
@@ -120,7 +131,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         title: const Text('프로필 설정'),
         leading: _step > 0
             ? IconButton(
-                icon: const Icon(Icons.arrow_back), onPressed: _prevPage)
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _prevPage,
+              )
             : null,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
@@ -136,17 +149,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         physics: const NeverScrollableScrollPhysics(),
         children: [
           ProfileStep1(
-            nameCtrl: _nameCtrl, ageCtrl: _ageCtrl, gender: _gender,
+            nameCtrl: _nameCtrl,
+            ageCtrl: _ageCtrl,
+            gender: _gender,
             onGenderChanged: (g) => setState(() => _gender = g),
             onNext: _nextPage,
           ),
           ProfileStep2(
-            heightCtrl: _heightCtrl, weightCtrl: _weightCtrl, goal: _goal,
+            heightCtrl: _heightCtrl,
+            weightCtrl: _weightCtrl,
+            goal: _goal,
             onGoalChanged: (g) => setState(() => _goal = g),
             onNext: _nextPage,
           ),
           ProfileStep3(
-            hasKidney: _hasKidney, hasLiver: _hasLiver,
+            hasKidney: _hasKidney,
+            hasLiver: _hasLiver,
             onKidneyChanged: (v) => setState(() => _hasKidney = v),
             onLiverChanged: (v) => setState(() => _hasLiver = v),
             medicationOptions: MedicineService.allCategories,
@@ -156,12 +174,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 if (selected) {
                   _medications = [..._medications, medication];
                 } else {
-                  _medications =
-                      _medications.where((item) => item != medication).toList();
+                  _medications = _medications
+                      .where((item) => item != medication)
+                      .toList();
                 }
               });
             },
-            onSave: _handleSave, isLoading: _isLoading,
+            onSave: _handleSave,
+            isLoading: _isLoading,
           ),
         ],
       ),

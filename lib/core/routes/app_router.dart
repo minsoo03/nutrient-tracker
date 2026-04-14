@@ -27,7 +27,9 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/profile-setup',
-      builder: (context, state) => const ProfileSetupScreen(),
+      builder: (context, state) => ProfileSetupScreen(
+        userId: state.extra as String?,
+      ),
     ),
     GoRoute(
       path: '/home',
