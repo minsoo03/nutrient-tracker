@@ -64,6 +64,33 @@ const kFriedEgg = FoodModel(
   ),
 );
 
+const kBoiledEgg = FoodModel(
+  id: 'standard_boiled_egg', name: '삶은 계란', source: 'standard',
+  nutritionBasisLabel: '100g',
+  per100g: FoodNutrition(
+    calories: 155, carbsG: 1.1, proteinG: 13.0, fatG: 10.6,
+    sugarG: 0.6, fiberG: 0, sodiumMg: 124, caffeineMg: 0, alcoholG: 0,
+  ),
+);
+
+const kRawEgg = FoodModel(
+  id: 'standard_raw_egg', name: '계란 (생)', source: 'standard',
+  nutritionBasisLabel: '100g',
+  per100g: FoodNutrition(
+    calories: 143, carbsG: 0.7, proteinG: 12.6, fatG: 9.5,
+    sugarG: 0.4, fiberG: 0, sodiumMg: 142, caffeineMg: 0, alcoholG: 0,
+  ),
+);
+
+const kScrambledEgg = FoodModel(
+  id: 'standard_scrambled_egg', name: '스크램블 에그', source: 'standard',
+  nutritionBasisLabel: '100g',
+  per100g: FoodNutrition(
+    calories: 149, carbsG: 1.3, proteinG: 10.1, fatG: 11.2,
+    sugarG: 0.6, fiberG: 0, sodiumMg: 150, caffeineMg: 0, alcoholG: 0,
+  ),
+);
+
 const kProteinShake = FoodModel(
   id: 'standard_protein_shake', name: '프로틴 쉐이크', source: 'standard',
   nutritionBasisLabel: '100g',

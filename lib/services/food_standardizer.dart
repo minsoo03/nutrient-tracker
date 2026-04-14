@@ -1,3 +1,4 @@
+import 'package:nutrient_tracker/data/food_alcohol_data.dart';
 import 'package:nutrient_tracker/data/food_brand_catalog.dart';
 import 'package:nutrient_tracker/models/food_model.dart';
 
@@ -50,8 +51,23 @@ class FoodStandardizer {
   }
 
   static List<FoodModel> _eggResults(String query) {
-    if (!_isFriedEggQuery(query)) return [];
-    return const [kFriedEgg];
+    final lower = query.toLowerCase();
+    final isEggQuery = query.contains('계란') || query.contains('달걀') ||
+        lower.contains('egg');
+    if (!isEggQuery) return [];
+
+    if (_isFriedEggQuery(query)) return const [kFriedEgg];
+
+    // "스크램블" 검색
+    if (lower.contains('scramble') || query.contains('스크램블')) {
+      return const [kScrambledEgg];
+    }
+    // "삶은" 검색
+    if (query.contains('삶') || lower.contains('boil') || lower.contains('hard')) {
+      return const [kBoiledEgg];
+    }
+    // 단순 "계란"/"달걀" → 자주 쓰는 순서로 전부 제공
+    return const [kBoiledEgg, kFriedEgg, kRawEgg, kScrambledEgg];
   }
 
   static bool _isAlcoholQuery(String query) {

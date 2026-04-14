@@ -61,6 +61,20 @@ class _MedicationScreenState extends State<MedicationScreen> {
       await _auth.saveUserProfile(
         profile.copyWith(medications: _chronicSelected),
       );
+    } catch (e) {
+      debugPrint('❌ saveUserProfile 실패: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('상시 복용약 저장 실패: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      setState(() => _isSaving = false);
+      return;
+    }
+
+    try {
       await _nutritionService.saveDailyMedications(
         uid,
         _todayDate,
@@ -75,13 +89,11 @@ class _MedicationScreenState extends State<MedicationScreen> {
       );
       context.pop();
     } catch (e) {
-      debugPrint(
-        '❌ medication save failed: uid=$uid, date=$_todayDate, error=$e',
-      );
+      debugPrint('❌ saveDailyMedications 실패: uid=$uid, date=$_todayDate, error=$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('약 저장 실패: ${_friendlyMedicationError(e)}'),
+          content: Text('오늘 복용 기록 저장 실패: $e'),
           backgroundColor: AppColors.error,
         ),
       );
