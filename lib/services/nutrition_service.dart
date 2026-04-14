@@ -20,10 +20,10 @@ class NutritionService {
   }
 
   Future<void> saveDailyLog(String uid, DailyLogModel log) async {
-    await _client.from('daily_logs').upsert({
-      ...log.toSupabase(),
-      'user_id': uid,
-    }, onConflict: 'user_id,date');
+    await _client.from('daily_logs').upsert(
+      {...log.toSupabase(), 'user_id': uid},
+      onConflict: 'user_id,date',
+    );
   }
 
   Stream<DailyLogModel> watchDailyLog(String uid, String date) async* {
@@ -38,15 +38,13 @@ class NutritionService {
     String date,
     List<String> medications,
   ) async {
-    final currentLog = await getDailyLog(uid, date);
-    await saveDailyLog(
-      uid,
-      currentLog.copyWith(
-        date: date,
-        dailyMedications: medications,
-        updatedAt: DateTime.now(),
-      ),
-    );
+    // medications 필드만 직접 upsert — 전체 로그 로드 불필요
+    await _client.from('daily_logs').upsert({
+      'user_id': uid,
+      'date': date,
+      'daily_medications': medications,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'user_id,date');
   }
 
   Future<void> rebuildDailyLogTotals(String uid, String date) async {

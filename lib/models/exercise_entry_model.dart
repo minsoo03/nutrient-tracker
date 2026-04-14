@@ -20,7 +20,7 @@ class ExerciseEntryModel {
       'exercise_name': exerciseName,
       'duration_minutes': durationMinutes,
       'burned_calories': burnedCalories,
-      'logged_at': loggedAt.toIso8601String(),
+      'logged_at': loggedAt.toUtc().toIso8601String(),
     };
   }
 

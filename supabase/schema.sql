@@ -93,6 +93,7 @@ drop policy if exists "profiles_update_own" on public.profiles;
 drop policy if exists "daily_logs_select_own" on public.daily_logs;
 drop policy if exists "daily_logs_insert_own" on public.daily_logs;
 drop policy if exists "daily_logs_update_own" on public.daily_logs;
+drop policy if exists "daily_logs_delete_own" on public.daily_logs;
 drop policy if exists "food_entries_select_own" on public.food_entries;
 drop policy if exists "food_entries_insert_own" on public.food_entries;
 drop policy if exists "food_entries_delete_own" on public.food_entries;
@@ -125,6 +126,10 @@ create policy "daily_logs_update_own"
   on public.daily_logs for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+create policy "daily_logs_delete_own"
+  on public.daily_logs for delete
+  using (auth.uid() = user_id);
 
 create policy "food_entries_select_own"
   on public.food_entries for select

@@ -97,8 +97,8 @@ class UserModel {
       'has_kidney_disease': hasKidneyDisease,
       'has_liver_disease': hasLiverDisease,
       'medications': medications,
-      'last_weight_updated_at': lastWeightUpdatedAt.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
+      'last_weight_updated_at': lastWeightUpdatedAt.toUtc().toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
     };
   }
 

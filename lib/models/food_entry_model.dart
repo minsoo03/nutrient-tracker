@@ -60,7 +60,7 @@ class FoodEntryModel {
       'sodium_mg': sodiumMg,
       'caffeine_mg': caffeineMg,
       'alcohol_g': alcoholG,
-      'logged_at': loggedAt.toIso8601String(),
+      'logged_at': loggedAt.toUtc().toIso8601String(),
       'meal_type': mealType,
     };
   }

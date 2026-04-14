@@ -87,7 +87,7 @@ class DailyLogModel {
       'total_exercise_calories': totalExerciseCalories,
       'total_water_ml': totalWaterMl,
       'daily_medications': dailyMedications,
-      'updated_at': updatedAt.toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 

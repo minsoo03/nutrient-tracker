@@ -33,7 +33,9 @@ class AuthService {
   }
 
   Future<void> saveUserProfile(UserModel user) async {
-    await _client.from('profiles').upsert(user.toSupabase());
+    await _client
+        .from('profiles')
+        .upsert(user.toSupabase(), onConflict: 'id');
   }
 
   Future<UserModel?> getUserProfile(String uid) async {
