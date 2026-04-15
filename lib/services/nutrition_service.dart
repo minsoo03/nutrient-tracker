@@ -38,13 +38,13 @@ class NutritionService {
     String date,
     List<String> medications,
   ) async {
-    // medications 필드만 직접 upsert — 전체 로그 로드 불필요
+    // defaultToNull: false → 명시하지 않은 컬럼(total_* 등)을 NULL로 덮어쓰지 않음
     await _client.from('daily_logs').upsert({
       'user_id': uid,
       'date': date,
       'daily_medications': medications,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }, onConflict: 'user_id,date');
+    }, onConflict: 'user_id,date', defaultToNull: false);
   }
 
   Future<void> rebuildDailyLogTotals(String uid, String date) async {
