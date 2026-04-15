@@ -23,6 +23,7 @@ class NutritionService {
     await _client.from('daily_logs').upsert(
       {...log.toSupabase(), 'user_id': uid},
       onConflict: 'user_id,date',
+      defaultToNull: false,
     );
   }
 
