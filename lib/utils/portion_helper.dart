@@ -14,8 +14,20 @@ class PortionOption {
 class PortionHelper {
   static const double _defaultEggPieceGrams = 50;
 
+  static const _fallbackGram = [
+    PortionOption('조금 (50g)', 50),
+    PortionOption('1회분 (100g)', 100),
+    PortionOption('보통 (150g)', 150),
+    PortionOption('많이 (200g)', 200),
+  ];
+  static const _fallbackMl = [
+    PortionOption('소 (150ml)', 150),
+    PortionOption('1컵 (200ml)', 200),
+    PortionOption('큰 컵 (350ml)', 350),
+    PortionOption('대용량 (500ml)', 500),
+  ];
+
   static const _map = <String, List<PortionOption>>{
-    // ── 곡류 ─────────────────────────────
     'rice|밥|쌀': [
       PortionOption('1공기 (210g)', 210),
       PortionOption('반공기 (105g)', 105),
@@ -44,7 +56,6 @@ class PortionHelper {
       PortionOption('1회분 (40g)', 40),
       PortionOption('진하게 (60g)', 60),
     ],
-    // ── 단백질 ──────────────────────────
     'egg|계란|달걀': [
       PortionOption('1개 소 (40g)', 40),
       PortionOption('1개 중 (50g)', 50),
@@ -68,7 +79,6 @@ class PortionHelper {
       PortionOption('1토막 (100g)', 100),
       PortionOption('1토막 (150g)', 150),
     ],
-    // ── 유제품 ──────────────────────────
     'milk|우유': [
       PortionOption('1컵 (200ml)', 200),
       PortionOption('반컵 (100ml)', 100),
@@ -81,7 +91,6 @@ class PortionHelper {
       PortionOption('1장 (20g)', 20),
       PortionOption('2장 (40g)', 40),
     ],
-    // ── 과일 ────────────────────────────
     'banana|바나나': [
       PortionOption('1개 소 (80g)', 80),
       PortionOption('1개 중 (100g)', 100),
@@ -96,7 +105,6 @@ class PortionHelper {
       PortionOption('1개 (100g)', 100),
       PortionOption('1개 (150g)', 150),
     ],
-    // ── 채소 ────────────────────────────
     'salad|샐러드': [
       PortionOption('1접시 (100g)', 100),
       PortionOption('1접시 (150g)', 150),
@@ -106,7 +114,6 @@ class PortionHelper {
       PortionOption('1인분 (300g)', 300),
       PortionOption('큰 그릇 (500g)', 500),
     ],
-    // ── 음료 ────────────────────────────
     'coffee|커피|아메리카노|라떼': [
       PortionOption('1잔 Small (240ml)', 240),
       PortionOption('1잔 Grande (355ml)', 355),
@@ -167,21 +174,17 @@ class PortionHelper {
     ],
   };
 
-  /// 음식 이름에 맞는 기본 섭취량 목록 반환. 없으면 빈 리스트.
+  /// 음식 이름에 맞는 기본 섭취량 목록 반환. 매칭 없으면 음료/일반 fallback 반환.
   static List<PortionOption> getPortions(String foodName) {
     final lower = foodName.toLowerCase();
     for (final entry in _map.entries) {
-      final keywords = entry.key.split('|');
-      if (keywords.any((kw) => lower.contains(kw))) {
-        return entry.value;
-      }
+      if (entry.key.split('|').any(lower.contains)) return entry.value;
     }
-    return [];
+    return inputProfileFor(foodName).usesMilliliters ? _fallbackMl : _fallbackGram;
   }
 
-  static bool usesMilliliters(String foodName) {
-    return inputProfileFor(foodName).usesMilliliters;
-  }
+  static bool usesMilliliters(String foodName) =>
+      inputProfileFor(foodName).usesMilliliters;
 
   static bool usesPieceCount(String foodName) {
     final l = foodName.toLowerCase();
@@ -192,9 +195,6 @@ class PortionHelper {
   }
 
   static double gramsPerPiece(String foodName) => _defaultEggPieceGrams;
-
-  /// FoodInputClassifier에 위임 — 하위 호환 유지
-  static FoodInputProfile inputProfileFor(String foodName) {
-    return FoodInputClassifier.inputProfileFor(foodName);
-  }
+  static FoodInputProfile inputProfileFor(String foodName) =>
+      FoodInputClassifier.inputProfileFor(foodName);
 }

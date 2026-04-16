@@ -90,8 +90,9 @@ class AmountDialogBody extends StatelessWidget {
           NumericInputField(
             controller: customCtrl,
             autofocus: portions.isEmpty,
-            labelText: '직접 입력',
-            suffixText: usesMl ? 'ml' : (usesPiece ? '개' : 'g'),
+            labelText: usesMl ? '직접 입력 (ml)' : (usesPiece ? '직접 입력 (개)' : '직접 입력 (인분)'),
+            suffixText: usesMl ? 'ml' : (usesPiece ? '개' : '인분'),
+            helperText: (!usesMl && !usesPiece) ? '1인분 = 100g 기준' : null,
           ),
         if (inputProfile.supportsZeroToggle) ...[
           const SizedBox(height: 16),

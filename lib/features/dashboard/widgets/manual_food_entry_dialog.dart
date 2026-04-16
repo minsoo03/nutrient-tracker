@@ -37,7 +37,6 @@ class _ManualFoodEntryDialog extends StatefulWidget {
 
 class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
   final _nameCtrl = TextEditingController();
-  final _amountCtrl = TextEditingController(text: '100');
   final _caloriesCtrl = TextEditingController();
   final _carbsCtrl = TextEditingController();
   final _proteinCtrl = TextEditingController();
@@ -54,7 +53,6 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _amountCtrl.dispose();
     _caloriesCtrl.dispose();
     _carbsCtrl.dispose();
     _proteinCtrl.dispose();
@@ -69,11 +67,10 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
 
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
-    final amount = double.tryParse(_amountCtrl.text.trim());
     final calories = double.tryParse(_caloriesCtrl.text.trim());
 
-    if (name.isEmpty || amount == null || amount <= 0 || calories == null) {
-      _showError('음식명, 섭취량, 칼로리를 올바르게 입력해주세요.');
+    if (name.isEmpty || calories == null) {
+      _showError('음식명과 칼로리를 올바르게 입력해주세요.');
       return;
     }
 
@@ -82,8 +79,8 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
       final entry = FoodEntryModel(
         foodId: 'custom_${DateTime.now().millisecondsSinceEpoch}',
         foodName: name,
-        amountG: amount,
-        amountValue: amount,
+        amountG: 100,
+        amountValue: 1,
         amountUnit: 'custom',
         entryType: 'manual',
         calories: calories,
@@ -131,7 +128,6 @@ class _ManualFoodEntryDialogState extends State<_ManualFoodEntryDialog> {
       content: SingleChildScrollView(
         child: ManualFoodEntryForm(
           nameCtrl: _nameCtrl,
-          amountCtrl: _amountCtrl,
           caloriesCtrl: _caloriesCtrl,
           carbsCtrl: _carbsCtrl,
           proteinCtrl: _proteinCtrl,

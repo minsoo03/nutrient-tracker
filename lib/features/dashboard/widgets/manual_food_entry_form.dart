@@ -4,7 +4,6 @@ import 'package:nutrient_tracker/core/widgets/numeric_input_field.dart';
 /// 직접 입력 다이얼로그의 폼 내용 위젯
 class ManualFoodEntryForm extends StatelessWidget {
   final TextEditingController nameCtrl;
-  final TextEditingController amountCtrl;
   final TextEditingController caloriesCtrl;
   final TextEditingController carbsCtrl;
   final TextEditingController proteinCtrl;
@@ -20,7 +19,6 @@ class ManualFoodEntryForm extends StatelessWidget {
   const ManualFoodEntryForm({
     super.key,
     required this.nameCtrl,
-    required this.amountCtrl,
     required this.caloriesCtrl,
     required this.carbsCtrl,
     required this.proteinCtrl,
@@ -42,9 +40,6 @@ class ManualFoodEntryForm extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _textField(nameCtrl, '음식명', TextInputType.text),
-          const SizedBox(height: 10),
-          NumericInputField(
-              controller: amountCtrl, labelText: '섭취량', suffixText: 'g/ml'),
           const SizedBox(height: 10),
           NumericInputField(
               controller: caloriesCtrl, labelText: '칼로리', suffixText: 'kcal'),

@@ -43,11 +43,7 @@ class _AmountDialogState extends State<_AmountDialog> {
     super.initState();
     _portions = PortionHelper.getPortions(widget.food.name);
     _inputProfile = PortionHelper.inputProfileFor(widget.food.name);
-    if (_portions.isNotEmpty) {
-      _selectedGrams = _portions.first.grams;
-    } else {
-      _isCustom = true;
-    }
+    if (_portions.isNotEmpty) _selectedGrams = _portions.first.grams;
   }
 
   @override
@@ -61,13 +57,15 @@ class _AmountDialogState extends State<_AmountDialog> {
 
   void _onConfirm() {
     final usesPiece = PortionHelper.usesPieceCount(widget.food.name);
+    final usesMl = _inputProfile.usesMilliliters;
     double? grams;
     if (_isCustom) {
       final raw = resolveCustomAmount(widget.food.name, _customCtrl.text);
       if (raw != null && raw > 0) {
+        // 인분 입력: 일반 음식은 1인분 = 100g으로 변환
         grams = usesPiece
             ? raw * PortionHelper.gramsPerPiece(widget.food.name)
-            : raw;
+            : usesMl ? raw : raw * 100.0;
       }
     } else {
       grams = _selectedGrams;
