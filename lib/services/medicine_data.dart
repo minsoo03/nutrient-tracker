@@ -2,6 +2,7 @@
 // 향후 식약처 의약품 안전나라 API 연동 예정
 // API: https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService04
 
+
 class MedicineWarning {
   final String title;
   final String description;
@@ -108,41 +109,6 @@ const kMedicineWarnings = <String, List<MedicineWarning>>{
   ],
 };
 
-const kMedicationRiskProfiles = <String, MedicationRiskProfile>{
-  '신장 투석': MedicationRiskProfile(
-    category: '신장 투석',
-    kidneyWeight: 18,
-    sensitiveToProtein: true,
-  ),
-  '피부과약(이소트레티노인 등)': MedicationRiskProfile(
-    category: '피부과약(이소트레티노인 등)',
-    liverWeight: 12,
-    kidneyWeight: 2,
-    sensitiveToProtein: true,
-    sensitiveToAlcohol: true,
-  ),
-  '소염진통제(NSAIDs)': MedicationRiskProfile(
-    category: '소염진통제(NSAIDs)',
-    liverWeight: 4,
-    kidneyWeight: 10,
-    sensitiveToProtein: true,
-    sensitiveToAlcohol: true,
-  ),
-  '이뇨제': MedicationRiskProfile(
-    category: '이뇨제',
-    kidneyWeight: 8,
-    sensitiveToCaffeine: true,
-  ),
-  'ACE억제제': MedicationRiskProfile(
-    category: 'ACE억제제',
-    kidneyWeight: 6,
-  ),
-  '스타틴(고지혈증약)': MedicationRiskProfile(
-    category: '스타틴(고지혈증약)',
-    liverWeight: 6,
-    sensitiveToAlcohol: true,
-  ),
-};
 
 const kAcuteCategories = <String>[
   '감기약',

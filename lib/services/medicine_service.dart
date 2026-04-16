@@ -1,4 +1,5 @@
 import 'package:nutrient_tracker/services/medicine_data.dart';
+import 'package:nutrient_tracker/services/medicine_risk_profiles.dart';
 
 export 'package:nutrient_tracker/services/medicine_data.dart'
     show MedicineWarning, MedicationRiskProfile;
