@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
 
-/// 운동 칼로리 요약 패널 (섭취 / 운동 소모 / 순칼로리)
+/// 운동 칼로리 요약 패널 (섭취 / 운동 소모)
 class ExerciseSummary extends StatelessWidget {
   final double consumedCalories;
   final double burnedCalories;
-  final double netCalories;
-  final double targetCalories;
 
   const ExerciseSummary({
     super.key,
     required this.consumedCalories,
     required this.burnedCalories,
-    required this.netCalories,
-    required this.targetCalories,
   });
 
   @override
@@ -28,47 +24,20 @@ class ExerciseSummary extends StatelessWidget {
           color: AppColors.kidney.withValues(alpha: 0.22),
         ),
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Row(
-            children: [
-              Icon(Icons.local_fire_department, color: AppColors.warning),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '섭취에서 운동 소모를 뺀 순칼로리 기준입니다',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+          _MetricPill(
+            icon: Icons.restaurant_rounded,
+            label: '섭취',
+            value: '${consumedCalories.toStringAsFixed(0)} kcal',
+            color: AppColors.primary,
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _MetricPill(
-                icon: Icons.restaurant_rounded,
-                label: '섭취',
-                value: '${consumedCalories.toStringAsFixed(0)} kcal',
-                color: AppColors.primary,
-              ),
-              _MetricPill(
-                icon: Icons.directions_run_rounded,
-                label: '운동 소모',
-                value: '-${burnedCalories.toStringAsFixed(0)} kcal',
-                color: AppColors.kidney,
-              ),
-              _MetricPill(
-                icon: Icons.calculate_rounded,
-                label: '순칼로리',
-                value: '${netCalories.toStringAsFixed(0)} kcal',
-                color: AppColors.warning,
-              ),
-            ],
+          _MetricPill(
+            icon: Icons.directions_run_rounded,
+            label: '운동 소모',
+            value: '${burnedCalories.toStringAsFixed(0)} kcal',
+            color: AppColors.kidney,
           ),
         ],
       ),

@@ -19,13 +19,8 @@ class CaloriesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final netCalories = (log.totalCalories - log.totalExerciseCalories).clamp(
-      0.0,
-      double.infinity,
-    );
-    final displayedCalories = showExercise ? netCalories : log.totalCalories;
-    final progress = (displayedCalories / target).clamp(0.0, 1.0);
-    final remaining = (target - displayedCalories).round();
+    final progress = (log.totalCalories / target).clamp(0.0, 1.0);
+    final remaining = (target - log.totalCalories).round();
     final isOver = remaining < 0;
 
     return Card(
@@ -49,9 +44,9 @@ class CaloriesCard extends StatelessWidget {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      showExercise ? '순칼로리' : '섭취 칼로리',
-                      style: const TextStyle(
+                    const Text(
+                      '섭취 칼로리',
+                      style: TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,
@@ -59,7 +54,7 @@ class CaloriesCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      displayedCalories.toStringAsFixed(0),
+                      log.totalCalories.toStringAsFixed(0),
                       style: const TextStyle(
                           fontSize: 32, fontWeight: FontWeight.bold),
                     ),
@@ -75,32 +70,24 @@ class CaloriesCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            if (showExercise) ...[
+            if (showExercise && log.totalExerciseCalories > 0) ...[
               ExerciseSummary(
                 consumedCalories: log.totalCalories,
                 burnedCalories: log.totalExerciseCalories,
-                netCalories: netCalories,
-                targetCalories: target.toDouble(),
               ),
               const SizedBox(height: 10),
-              _Stat(
-                label: isOver ? '오늘 목표 초과' : '오늘 목표까지',
-                value: '${remaining.abs()} kcal',
-                color: isOver ? AppColors.error : AppColors.primary,
-              ),
-            ] else ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _Stat(label: '목표', value: '$target kcal'),
-                  _Stat(
-                    label: isOver ? '초과' : '남은 칼로리',
-                    value: '${remaining.abs()} kcal',
-                    color: isOver ? AppColors.error : AppColors.primary,
-                  ),
-                ],
-              ),
             ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _Stat(label: '목표', value: '$target kcal'),
+                _Stat(
+                  label: isOver ? '초과' : '남은 칼로리',
+                  value: '${remaining.abs()} kcal',
+                  color: isOver ? AppColors.error : AppColors.primary,
+                ),
+              ],
+            ),
           ],
         ),
       ),
