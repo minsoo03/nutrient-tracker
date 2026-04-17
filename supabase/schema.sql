@@ -1,4 +1,5 @@
 create extension if not exists pgcrypto;
+create extension if not exists pg_trgm;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -40,6 +41,9 @@ create table if not exists public.daily_logs (
   unique (user_id, date)
 );
 
+alter table public.daily_logs
+  add column if not exists daily_medication_entries jsonb not null default '[]'::jsonb;
+
 create table if not exists public.food_entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -73,6 +77,34 @@ create table if not exists public.exercise_entries (
   logged_at timestamptz not null default now()
 );
 
+create table if not exists public.branded_foods (
+  id text primary key,
+  food_name text not null default '',
+  maker_name text not null default '',
+  item_report_no text not null default '',
+  db_group_code text not null default '',
+  db_group_name text not null default '',
+  db_class_code text not null default '',
+  db_class_name text not null default '',
+  nutrition_basis_label text not null default '100g',
+  serving_amount double precision,
+  serving_unit text,
+  package_amount double precision,
+  package_unit text,
+  calories_per_100 double precision not null default 0,
+  carbs_g_per_100 double precision not null default 0,
+  protein_g_per_100 double precision not null default 0,
+  fat_g_per_100 double precision not null default 0,
+  sugar_g_per_100 double precision not null default 0,
+  fiber_g_per_100 double precision not null default 0,
+  sodium_mg_per_100 double precision not null default 0,
+  caffeine_mg_per_100 double precision not null default 0,
+  alcohol_g_per_100 double precision not null default 0,
+  source text not null default 'kr_mfds',
+  raw_json jsonb,
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists daily_logs_user_date_idx
   on public.daily_logs (user_id, date);
 
@@ -82,10 +114,18 @@ create index if not exists food_entries_user_date_logged_idx
 create index if not exists exercise_entries_user_date_logged_idx
   on public.exercise_entries (user_id, log_date, logged_at);
 
+-- 한국어 부분검색을 위한 트라이그램 GIN 인덱스 (ilike '%query%' 성능 향상)
+create index if not exists branded_foods_name_trgm_idx
+  on public.branded_foods using gin (food_name gin_trgm_ops);
+
+create index if not exists branded_foods_maker_trgm_idx
+  on public.branded_foods using gin (maker_name gin_trgm_ops);
+
 alter table public.profiles enable row level security;
 alter table public.daily_logs enable row level security;
 alter table public.food_entries enable row level security;
 alter table public.exercise_entries enable row level security;
+alter table public.branded_foods enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;
@@ -100,6 +140,7 @@ drop policy if exists "food_entries_delete_own" on public.food_entries;
 drop policy if exists "exercise_entries_select_own" on public.exercise_entries;
 drop policy if exists "exercise_entries_insert_own" on public.exercise_entries;
 drop policy if exists "exercise_entries_delete_own" on public.exercise_entries;
+drop policy if exists "branded_foods_select_all" on public.branded_foods;
 
 create policy "profiles_select_own"
   on public.profiles for select
@@ -154,3 +195,7 @@ create policy "exercise_entries_insert_own"
 create policy "exercise_entries_delete_own"
   on public.exercise_entries for delete
   using (auth.uid() = user_id);
+
+create policy "branded_foods_select_all"
+  on public.branded_foods for select
+  using (true);
