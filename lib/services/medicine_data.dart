@@ -2,7 +2,6 @@
 // 향후 식약처 의약품 안전나라 API 연동 예정
 // API: https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService04
 
-
 class MedicineWarning {
   final String title;
   final String description;
@@ -31,6 +30,17 @@ class MedicationRiskProfile {
     this.sensitiveToAlcohol = false,
     this.sensitiveToCaffeine = false,
   });
+
+  MedicationRiskProfile scaled(double factor) {
+    return MedicationRiskProfile(
+      category: category,
+      liverWeight: liverWeight * factor,
+      kidneyWeight: kidneyWeight * factor,
+      sensitiveToProtein: sensitiveToProtein,
+      sensitiveToAlcohol: sensitiveToAlcohol,
+      sensitiveToCaffeine: sensitiveToCaffeine,
+    );
+  }
 }
 
 const kMedicineWarnings = <String, List<MedicineWarning>>{
@@ -108,7 +118,6 @@ const kMedicineWarnings = <String, List<MedicineWarning>>{
     ),
   ],
 };
-
 
 const kAcuteCategories = <String>[
   '감기약',
