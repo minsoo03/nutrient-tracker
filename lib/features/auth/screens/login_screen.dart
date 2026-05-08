@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
@@ -13,6 +15,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _devEmail = (dotenv.env['DEV_TEST_EMAIL'] ?? '').trim();
+  final _devPassword = (dotenv.env['DEV_TEST_PASSWORD'] ?? '').trim();
   String? _errorMessage;
   bool _isLoading = false;
 
@@ -59,12 +63,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Release 빌드에서는 dev 자격증명이 .env에 들어가 있더라도 절대 노출하지 않음
+  bool get _hasDevLogin =>
+      !kReleaseMode && _devEmail.isNotEmpty && _devPassword.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('로그인'),
-      ),
+      appBar: AppBar(title: const Text('로그인')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -74,9 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               'Nutrient Tracker',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.primary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(color: AppColors.primary),
             ),
             const SizedBox(height: 48),
             TextField(
@@ -90,9 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: '비밀번호',
-              ),
+              decoration: const InputDecoration(labelText: '비밀번호'),
               obscureText: true,
             ),
             if (_errorMessage != null) ...[
@@ -111,8 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : const Text('로그인'),
@@ -128,23 +131,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _isLoading
-                  ? null
-                  : () {
-                      _emailController.text = 'admin@nutrient.dev';
-                      _passwordController.text = 'Admin1234!';
-                      _handleLogin();
-                    },
-              icon: const Icon(Icons.developer_mode, size: 18),
-              label: const Text('테스트 계정으로 로그인 (개발용)'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.grey[600],
+            if (_hasDevLogin) ...[
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        _emailController.text = _devEmail;
+                        _passwordController.text = _devPassword;
+                        _handleLogin();
+                      },
+                icon: const Icon(Icons.developer_mode, size: 18),
+                label: const Text('테스트 계정으로 로그인 (개발용)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey[600],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

@@ -141,6 +141,8 @@ drop policy if exists "exercise_entries_select_own" on public.exercise_entries;
 drop policy if exists "exercise_entries_insert_own" on public.exercise_entries;
 drop policy if exists "exercise_entries_delete_own" on public.exercise_entries;
 drop policy if exists "branded_foods_select_all" on public.branded_foods;
+drop policy if exists "branded_foods_insert_authenticated" on public.branded_foods;
+drop policy if exists "branded_foods_update_authenticated" on public.branded_foods;
 
 create policy "profiles_select_own"
   on public.profiles for select
@@ -199,3 +201,16 @@ create policy "exercise_entries_delete_own"
 create policy "branded_foods_select_all"
   on public.branded_foods for select
   using (true);
+
+-- 로그인된 사용자는 외부 API에서 받아온 식품 데이터를 공유 캐시(branded_foods)에 저장 가능
+-- (id 충돌 시 upsert로 최신화)
+create policy "branded_foods_insert_authenticated"
+  on public.branded_foods for insert
+  to authenticated
+  with check (true);
+
+create policy "branded_foods_update_authenticated"
+  on public.branded_foods for update
+  to authenticated
+  using (true)
+  with check (true);

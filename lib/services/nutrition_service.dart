@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:nutrient_tracker/models/daily_log_model.dart';
+import 'package:nutrient_tracker/models/daily_medication_entry_model.dart';
 import 'package:nutrient_tracker/models/exercise_entry_model.dart';
 import 'package:nutrient_tracker/models/food_entry_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,16 +21,18 @@ class NutritionService {
   }
 
   Future<void> saveDailyLog(String uid, DailyLogModel log) async {
-    await _client.from('daily_logs').upsert(
-      {...log.toSupabase(), 'user_id': uid},
-      onConflict: 'user_id,date',
-      defaultToNull: false,
-    );
+    await _client
+        .from('daily_logs')
+        .upsert(
+          {...log.toSupabase(), 'user_id': uid},
+          onConflict: 'user_id,date',
+          defaultToNull: false,
+        );
   }
 
   Stream<DailyLogModel> watchDailyLog(String uid, String date) async* {
     yield await getDailyLog(uid, date);
-    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+    await for (final _ in Stream.periodic(const Duration(seconds: 15))) {
       yield await getDailyLog(uid, date);
     }
   }
@@ -37,15 +40,26 @@ class NutritionService {
   Future<void> saveDailyMedications(
     String uid,
     String date,
-    List<String> medications,
+    List<DailyMedicationEntryModel> medications,
   ) async {
     // defaultToNull: false → 명시하지 않은 컬럼(total_* 등)을 NULL로 덮어쓰지 않음
-    await _client.from('daily_logs').upsert({
-      'user_id': uid,
-      'date': date,
-      'daily_medications': medications,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }, onConflict: 'user_id,date', defaultToNull: false);
+    await _client
+        .from('daily_logs')
+        .upsert(
+          {
+            'user_id': uid,
+            'date': date,
+            'daily_medications': medications
+                .expand((entry) => List<String>.filled(entry.count, entry.name))
+                .toList(growable: false),
+            'daily_medication_entries': medications
+                .map((entry) => entry.toJson())
+                .toList(growable: false),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          },
+          onConflict: 'user_id,date',
+          defaultToNull: false,
+        );
   }
 
   Future<void> rebuildDailyLogTotals(String uid, String date) async {
@@ -80,7 +94,9 @@ class NutritionService {
 
     var totalExerciseCalories = 0.0;
     for (final row in exerciseRows) {
-      totalExerciseCalories += ExerciseEntryModel.fromSupabase(row).burnedCalories;
+      totalExerciseCalories += ExerciseEntryModel.fromSupabase(
+        row,
+      ).burnedCalories;
     }
 
     await saveDailyLog(
@@ -120,7 +136,11 @@ class NutritionService {
   }
 
   Future<void> deleteFoodEntry(String uid, String date, String entryId) async {
-    await _client.from('food_entries').delete().eq('user_id', uid).eq('id', entryId);
+    await _client
+        .from('food_entries')
+        .delete()
+        .eq('user_id', uid)
+        .eq('id', entryId);
     await rebuildDailyLogTotals(uid, date);
   }
 
@@ -136,7 +156,7 @@ class NutritionService {
 
   Stream<List<FoodEntryModel>> watchEntries(String uid, String date) async* {
     yield await getEntries(uid, date);
-    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+    await for (final _ in Stream.periodic(const Duration(seconds: 15))) {
       yield await getEntries(uid, date);
     }
   }
@@ -189,7 +209,7 @@ class NutritionService {
     String date,
   ) async* {
     yield await getExerciseEntries(uid, date);
-    await for (final _ in Stream.periodic(const Duration(seconds: 2))) {
+    await for (final _ in Stream.periodic(const Duration(seconds: 15))) {
       yield await getExerciseEntries(uid, date);
     }
   }

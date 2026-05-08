@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nutrient_tracker/core/constants/app_colors.dart';
 import 'package:nutrient_tracker/features/auth/models/user_model.dart';
 import 'package:nutrient_tracker/features/auth/services/auth_service.dart';
+import 'package:nutrient_tracker/features/auth/utils/profile_input_validator.dart';
 import 'package:nutrient_tracker/features/auth/widgets/profile_setup_steps.dart';
 import 'package:nutrient_tracker/services/medicine_service.dart';
 import 'package:nutrient_tracker/services/nutrition_calculator.dart';
@@ -42,20 +43,27 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.dispose();
   }
 
-  void _nextPage() {
-    _pageCtrl.nextPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
-    setState(() => _step++);
   }
 
-  void _prevPage() {
-    _pageCtrl.previousPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-    setState(() => _step--);
+  void _go(bool forward) {
+    const dur = Duration(milliseconds: 300);
+    forward
+        ? _pageCtrl.nextPage(duration: dur, curve: Curves.easeInOut)
+        : _pageCtrl.previousPage(duration: dur, curve: Curves.easeInOut);
+    setState(() => _step += forward ? 1 : -1);
+  }
+
+  void _toggleMedication(String medication, bool selected) {
+    setState(() {
+      _medications = selected
+          ? [..._medications, medication]
+          : _medications.where((item) => item != medication).toList();
+    });
   }
 
   Future<void> _handleSave() async {
@@ -63,12 +71,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         _ageCtrl.text.trim().isEmpty ||
         _heightCtrl.text.trim().isEmpty ||
         _weightCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('이름, 나이, 키, 몸무게를 모두 입력해주세요.'),
-          backgroundColor: Colors.red,
-        ),
+      _showError('이름, 나이, 키, 몸무게를 모두 입력해주세요.');
+      return;
+    }
+
+    // 숫자 입력 검증 — 잘못된 값이면 FormatException으로 빠지지 않고 친절히 안내
+    final ProfileInputs inputs;
+    try {
+      inputs = ProfileInputValidator.parse(
+        ageText: _ageCtrl.text,
+        heightText: _heightCtrl.text,
+        weightText: _weightCtrl.text,
       );
+    } on ProfileInputError catch (e) {
+      _showError(e.message);
       return;
     }
 
@@ -81,10 +97,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (uid == null || uid.isEmpty) throw Exception('로그인이 필요합니다');
 
       final targets = NutritionCalculator.calculate(
-        age: int.parse(_ageCtrl.text),
+        age: inputs.age,
         gender: _gender,
-        heightCm: double.parse(_heightCtrl.text),
-        weightKg: double.parse(_weightCtrl.text),
+        heightCm: inputs.heightCm,
+        weightKg: inputs.weightKg,
         goal: _goal,
         hasKidneyDisease: _hasKidney,
         hasLiverDisease: _hasLiver,
@@ -94,10 +110,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         UserModel(
           uid: uid,
           name: _nameCtrl.text.trim(),
-          age: int.parse(_ageCtrl.text),
+          age: inputs.age,
           gender: _gender,
-          heightCm: double.parse(_heightCtrl.text),
-          weightKg: double.parse(_weightCtrl.text),
+          heightCm: inputs.heightCm,
+          weightKg: inputs.weightKg,
           goal: _goal,
           dailyCalorieTarget: targets.calories,
           dailyProteinTarget: targets.proteinG,
@@ -132,7 +148,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         leading: _step > 0
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: _prevPage,
+                onPressed: () => _go(false),
               )
             : null,
         bottom: PreferredSize(
@@ -153,14 +169,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ageCtrl: _ageCtrl,
             gender: _gender,
             onGenderChanged: (g) => setState(() => _gender = g),
-            onNext: _nextPage,
+            onNext: () => _go(true),
           ),
           ProfileStep2(
             heightCtrl: _heightCtrl,
             weightCtrl: _weightCtrl,
             goal: _goal,
             onGoalChanged: (g) => setState(() => _goal = g),
-            onNext: _nextPage,
+            onNext: () => _go(true),
           ),
           ProfileStep3(
             hasKidney: _hasKidney,
@@ -169,17 +185,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             onLiverChanged: (v) => setState(() => _hasLiver = v),
             medicationOptions: MedicineService.allCategories,
             selectedMedications: _medications,
-            onMedicationToggle: (medication, selected) {
-              setState(() {
-                if (selected) {
-                  _medications = [..._medications, medication];
-                } else {
-                  _medications = _medications
-                      .where((item) => item != medication)
-                      .toList();
-                }
-              });
-            },
+            onMedicationToggle: _toggleMedication,
             onSave: _handleSave,
             isLoading: _isLoading,
           ),

@@ -11,6 +11,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
@@ -18,6 +20,9 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigate() async {
+    if (mounted) {
+      setState(() => _errorMessage = null);
+    }
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
@@ -31,6 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // 프로필 존재 여부 확인 → 없으면 /profile-setup으로
+    // 네트워크 오류 등으로 실패 시 home으로 가지 않고 에러 표시 후 재시도 옵션 제공
     try {
       final profile = await auth.getUserProfile(user.id);
       if (!mounted) return;
@@ -39,8 +45,11 @@ class _SplashScreenState extends State<SplashScreen> {
       } else {
         context.go('/home');
       }
-    } catch (_) {
-      if (mounted) context.go('/home');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = '프로필을 불러오지 못했습니다. 네트워크를 확인하고 다시 시도해주세요.';
+      });
     }
   }
 
@@ -63,9 +72,25 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
+            if (_errorMessage == null)
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              )
+            else ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.tonal(
+                onPressed: _navigate,
+                child: const Text('다시 시도'),
+              ),
+            ],
           ],
         ),
       ),

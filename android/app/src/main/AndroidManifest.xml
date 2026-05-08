@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 네트워크 호출 (Supabase, 식약처/USDA API) — release 빌드 필수 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="nutrient_tracker"
         android:name="${applicationName}"

@@ -28,3 +28,8 @@ firebase_options.dart
 *.env.local
 secrets.dart
 api_keys.dart
+
+# 학교 과제·개인 문서 (학번/본명 포함될 수 있음)
+*.pptx
+*.docx
+*.hwp
