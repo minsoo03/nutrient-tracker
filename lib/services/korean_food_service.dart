@@ -21,20 +21,19 @@ class KoreanFoodService {
     ('health', 'https://api.data.go.kr/openapi/tn_pubr_public_health_functional_food_nutrition_info_api', 'hfoodNm'),
   ];
 
+  /// 캐시가 이 개수 이상이면 외부 API 호출 생략 (충분히 결과가 있다고 판단)
+  static const _cacheSatisfactionThreshold = 5;
+
   Future<List<FoodModel>> searchKoreanFoods(String query) async {
     if (query.trim().isEmpty) return [];
 
-    // 1단계: Supabase 캐시 조회
+    // 1단계: Supabase 캐시 조회 — 충분히 많으면 외부 API 생략
     final cached = await FoodCacheService.search(query);
-    if (cached.isNotEmpty) {
-      debugPrint('✅ [cache] ${cached.length}개 캐시 히트');
-      return cached;
-    }
+    if (cached.length >= _cacheSatisfactionThreshold) return cached;
 
-    // 2단계: 외부 API 호출
+    // 2단계: 외부 API 호출 (캐시가 부족하므로 보강)
     final key = _apiKey;
-    debugPrint('🔑 apiKey=${key.isEmpty ? "비어있음!" : "${key.substring(0, 8)}..."}');
-    if (key.isEmpty) return [];
+    if (key.isEmpty) return cached; // API 키 없으면 가진 캐시라도 반환
 
     final futures = <Future<List<FoodModel>>>[
       _fetchMfdsFoodDb(query),
@@ -46,17 +45,20 @@ class KoreanFoodService {
 
     final results = await Future.wait(futures);
     final seen = <String>{};
-    final unique = results
+    // 캐시 결과 먼저 dedup 키에 등록 (캐시가 우선순위)
+    for (final f in cached) {
+      seen.add('${f.source}:${f.id}:${f.name}:${f.nutritionBasisLabel}');
+    }
+    final fresh = results
         .expand((r) => r)
         .where((f) => f.name.isNotEmpty)
         .where(_hasUsableNutrition)
         .where((f) => seen.add('${f.source}:${f.id}:${f.name}:${f.nutritionBasisLabel}'))
         .toList();
 
-    debugPrint('🍱 총 ${unique.length}개 결과 → 캐시 저장 중');
-    // 3단계: 결과를 캐시에 저장 (다음 검색부터 빠르게)
-    FoodCacheService.saveAll(unique);
-    return unique;
+    // 3단계: 신규 결과만 캐시에 저장
+    FoodCacheService.saveAll(fresh);
+    return [...cached, ...fresh];
   }
 
   Future<List<FoodModel>> searchBrandedFoods(String query) async {
@@ -66,7 +68,9 @@ class KoreanFoodService {
     // 캐시에서 브랜드 식품 먼저 확인
     final cached = await FoodCacheService.search(normalized);
     final cachedBranded = cached.where((f) => f.isBrandedProduct).toList();
-    if (cachedBranded.isNotEmpty) return cachedBranded;
+    if (cachedBranded.length >= _cacheSatisfactionThreshold) {
+      return cachedBranded;
+    }
 
     final makerCandidates = <String>{..._resolveMakerCandidates(normalized)};
     final futures = <Future<List<FoodModel>>>[
@@ -76,15 +80,18 @@ class KoreanFoodService {
 
     final results = await Future.wait(futures);
     final seen = <String>{};
-    final branded = results
+    for (final f in cachedBranded) {
+      seen.add('${f.id}:${f.name}:${f.makerName ?? ''}');
+    }
+    final freshBranded = results
         .expand((rows) => rows)
         .where((food) => food.isBrandedProduct)
         .where((food) => _isRelevantBrandedResult(food, normalized))
         .where((food) => seen.add('${food.id}:${food.name}:${food.makerName ?? ''}'))
         .toList();
 
-    FoodCacheService.saveAll(branded);
-    return branded;
+    FoodCacheService.saveAll(freshBranded);
+    return [...cachedBranded, ...freshBranded];
   }
 
   Future<List<FoodModel>> _fetchOne({
