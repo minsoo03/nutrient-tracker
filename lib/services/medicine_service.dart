@@ -1,3 +1,4 @@
+import 'package:nutrient_tracker/services/medication_catalog_service.dart';
 import 'package:nutrient_tracker/services/medicine_data.dart';
 import 'package:nutrient_tracker/services/medicine_risk_profiles.dart';
 
@@ -17,8 +18,21 @@ class MedicineService {
 
   /// 약물 목록을 기반으로 관련 경고 반환
   /// "감기약:3" 형식의 수량 인코딩도 지원
+  /// DB 캐시(medication_catalog) 우선, 실패 시 하드코딩 fallback
   static List<MedicineWarning> getWarnings(List<String> medications) {
     final result = <MedicineWarning>[];
+    if (MedicationCatalogService.isLoaded) {
+      for (final med in medications) {
+        final name = _parseName(med);
+        for (final entry in MedicationCatalogService.cached) {
+          if (name.contains(entry.category)) {
+            final w = entry.asWarning;
+            if (w != null) result.add(w);
+          }
+        }
+      }
+      return result;
+    }
     for (final med in medications) {
       final name = _parseName(med);
       for (final key in kMedicineWarnings.keys) {
@@ -42,13 +56,43 @@ class MedicineService {
   }
 
   /// 모든 약물 카테고리 목록 (UI 선택용)
-  static List<String> get allCategories => kMedicineWarnings.keys.toList();
-  static List<String> get acuteCategories => kAcuteCategories;
+  /// DB 캐시 우선, 실패 시 하드코딩 fallback
+  static List<String> get allCategories {
+    if (MedicationCatalogService.isLoaded) {
+      return MedicationCatalogService.cached.map((e) => e.category).toList();
+    }
+    return kMedicineWarnings.keys.toList();
+  }
+
+  /// 단기 복용약 카테고리 (DB의 is_chronic=false 또는 하드코딩 fallback)
+  static List<String> get acuteCategories {
+    if (MedicationCatalogService.isLoaded) {
+      return MedicationCatalogService.cached
+          .where((e) => !e.isChronic)
+          .map((e) => e.category)
+          .toList();
+    }
+    return kAcuteCategories;
+  }
 
   /// 약물 목록을 기반으로 리스크 프로필 반환
   /// "감기약:3" 형식 지원 — 수량에 따라 가중치 자동 조정
+  /// DB 캐시 우선, 실패 시 하드코딩 fallback
   static List<MedicationRiskProfile> getRiskProfiles(List<String> medications) {
     final result = <MedicationRiskProfile>[];
+    if (MedicationCatalogService.isLoaded) {
+      for (final med in medications) {
+        final name = _parseName(med);
+        final factor = _doseFactor(_parseDose(med));
+        for (final entry in MedicationCatalogService.cached) {
+          if (name.contains(entry.category)) {
+            final profile = entry.asRiskProfile;
+            result.add(factor == 1.0 ? profile : profile.scaled(factor));
+          }
+        }
+      }
+      return result;
+    }
     for (final med in medications) {
       final name = _parseName(med);
       final factor = _doseFactor(_parseDose(med));
@@ -86,8 +130,6 @@ class MedicineService {
 
   /// List<String>에서 약이름→수량 Map 파싱
   static Map<String, int> decodeDoses(List<String> medications) {
-    return {
-      for (final med in medications) _parseName(med): _parseDose(med),
-    };
+    return {for (final med in medications) _parseName(med): _parseDose(med)};
   }
 }

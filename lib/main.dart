@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:nutrient_tracker/core/theme/app_theme.dart';
 import 'package:nutrient_tracker/core/routes/app_router.dart';
+import 'package:nutrient_tracker/services/exercise_catalog_service.dart';
+import 'package:nutrient_tracker/services/medication_catalog_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -16,6 +18,13 @@ void main() async {
   }
 
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+
+  // LLM 시드 카탈로그를 병렬로 미리 로드 (실패해도 앱은 fallback 데이터로 동작)
+  await Future.wait([
+    MedicationCatalogService.loadAll(),
+    ExerciseCatalogService.loadAll(),
+  ]);
+
   runApp(const MyApp());
 }
 
